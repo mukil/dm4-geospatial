@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <name>DeepaMehta 4 Geospatial</name>
+    <groupId>de.deepamehta</groupId>
+    <artifactId>dm43-SNAPSHOT-geospatial</artifactId>
+    <version>0.1-SNAPSHOT</version>
+    <packaging>bundle</packaging>
+
+    <parent>
+        <groupId>de.deepamehta</groupId>
+        <artifactId>deepamehta-plugin-parent</artifactId>
+        <version>4.3-SNAPSHOT</version>
+    </parent>
+
+    <dependencies>
+        <!-- Neo4j -->
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel</artifactId>
+            <version>1.8.1</version>
+        </dependency>
+        <!-- Neo4j Spatial -->
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-spatial</artifactId>
+            <version>0.9.1-neo4j-1.8.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-opengis</artifactId>
+            <version>8.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jsr-275</groupId>
+            <artifactId>jsr-275</artifactId>
+            <version>1.0-beta-2</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <version>2.4</version>
+        </dependency>
+    </dependencies>
+
+    <repositories>
+        <!-- Note: Neo4j Spatial is not contained in Central -->
+        <repository>
+            <id>neo4j-release-repository</id>
+            <name>Maven 2 release repository for Neo4j</name>
+            <url>http://m2.neo4j.org/content/repositories/releases/</url>
+        </repository>
+        <!-- Note: GeoTools is not contained in Central -->
+        <repository>
+            <id>osgeo</id>
+            <name>Open Source Geospatial Foundation Repository</name>
+            <url>http://download.osgeo.org/webdav/geotools/</url>
+        </repository>
+    </repositories>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <configuration>
+                    <instructions>
+                        <Bundle-Activator>
+                            de.deepamehta.plugins.geospatial.GeospatialPlugin
+                        </Bundle-Activator>
+                        <Import-Package>
+                            org.neo4j.graphdb, !org.neo4j.*,
+                            !com.tinkerpop.*,
+                            !com.vividsolutions.jts.*, !org.geotools.*, !org.opengis.*, !org.json.simple.*,
+                            !org.apache.commons.collections, !org.apache.log4j, *
+                        </Import-Package>
+                        <Embed-Dependency>
+                            neo4j-spatial, gt-opengis, jsr-275, commons-lang
+                        </Embed-Dependency>
+                    </instructions>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
