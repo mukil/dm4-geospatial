@@ -30,19 +30,24 @@
             <version>0.9.1-neo4j-1.8.2</version>
         </dependency>
         <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-graph-collections</artifactId>
+            <version>0.4-neo4j-1.8.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-metadata</artifactId>
+            <version>8.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.geotools</groupId>
             <artifactId>gt-opengis</artifactId>
             <version>8.0</version>
         </dependency>
         <dependency>
-            <groupId>net.java.dev.jsr-275</groupId>
-            <artifactId>jsr-275</artifactId>
-            <version>1.0-beta-2</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-lang</groupId>
-            <artifactId>commons-lang</artifactId>
-            <version>2.4</version>
+            <groupId>com.vividsolutions</groupId>
+            <artifactId>jts</artifactId>
+            <version>1.12</version>
         </dependency>
     </dependencies>
 
@@ -74,11 +79,13 @@
                         <Import-Package>
                             org.neo4j.graphdb, !org.neo4j.*,
                             !com.tinkerpop.*,
-                            !com.vividsolutions.jts.*, !org.geotools.*, !org.opengis.*, !org.json.simple.*,
-                            !org.apache.commons.collections, !org.apache.log4j, *
+                            !org.geotools.*, !org.json.simple.*,
+                            !org.apache.commons.collections, !org.apache.commons.logging.*, !org.apache.commons.lang,
+                            !org.apache.log4j,
+                            !javax.vecmath, !javax.measure.*, !javax.transaction, *
                         </Import-Package>
                         <Embed-Dependency>
-                            neo4j-spatial, gt-opengis, jsr-275, commons-lang
+                            neo4j-spatial, neo4j-graph-collections, gt-metadata, gt-opengis, jts
                         </Embed-Dependency>
                     </instructions>
                 </configuration>
