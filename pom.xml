@@ -50,9 +50,19 @@
             <version>8.0</version>
         </dependency>
         <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-referencing</artifactId>
+            <version>8.0</version>
+        </dependency>
+        <dependency>
             <groupId>com.vividsolutions</groupId>
             <artifactId>jts</artifactId>
             <version>1.12</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jscience</groupId>
+            <artifactId>jscience</artifactId>
+            <version>4.3.1</version>
         </dependency>
     </dependencies>
 
@@ -82,15 +92,19 @@
                             de.deepamehta.plugins.geospatial.GeospatialPlugin
                         </Bundle-Activator>
                         <Import-Package>
-                            org.neo4j.graphdb, !org.neo4j.*,
+                            org.neo4j.graphdb, org.neo4j.graphdb.traversal, org.neo4j.kernel, !org.neo4j.*,
                             !com.tinkerpop.*,
                             !org.geotools.*, !org.json.simple.*,
-                            !org.apache.commons.collections, !org.apache.commons.logging.*, !org.apache.commons.lang,
+                            !au.com.objectix.jgridshift,
+                            !org.apache.commons.collections, !org.apache.commons.pool.*, !org.apache.commons.logging.*,
+                            !org.apache.commons.lang,
                             !org.apache.log4j,
-                            !javax.vecmath, !javax.measure.*, !javax.transaction, *
+                            !javax.vecmath, !javax.media.jai.*, !javax.transaction.*, *
                         </Import-Package>
                         <Embed-Dependency>
-                            neo4j-spatial, neo4j-graph-collections, gt-metadata, gt-opengis, jts
+                            neo4j-spatial, neo4j-graph-collections,
+                            gt-metadata, gt-opengis, gt-referencing,
+                            jts, jscience
                         </Embed-Dependency>
                     </instructions>
                 </configuration>
