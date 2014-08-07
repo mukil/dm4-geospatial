@@ -21,48 +21,84 @@
             <groupId>de.deepamehta</groupId>
             <artifactId>deepamehta-geomaps</artifactId>
             <version>4.4-SNAPSHOT</version>
+            <scope>provided</scope>
         </dependency>
         <!-- Neo4j -->
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-kernel</artifactId>
             <version>1.8.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-graph-collections</artifactId>
+            <version>0.4-neo4j-1.8.2</version>
+            <scope>provided</scope>
         </dependency>
         <!-- Neo4j Spatial -->
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-spatial</artifactId>
             <version>0.9.1-neo4j-1.8.2</version>
+            <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-graph-collections</artifactId>
-            <version>0.4-neo4j-1.8.2</version>
-        </dependency>
+        <!-- GeoTools -->
         <dependency>
             <groupId>org.geotools</groupId>
-            <artifactId>gt-metadata</artifactId>
+            <artifactId>gt-api</artifactId>
             <version>8.0</version>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.geotools</groupId>
             <artifactId>gt-opengis</artifactId>
             <version>8.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-metadata</artifactId>
+            <version>8.0</version>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.geotools</groupId>
             <artifactId>gt-referencing</artifactId>
             <version>8.0</version>
+            <scope>runtime</scope>
         </dependency>
+        <!-- -->
         <dependency>
             <groupId>com.vividsolutions</groupId>
             <artifactId>jts</artifactId>
             <version>1.12</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.jscience</groupId>
             <artifactId>jscience</artifactId>
             <version>4.3.1</version>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Tinkerpop -->
+        <dependency>
+            <groupId>com.tinkerpop.gremlin</groupId>
+            <artifactId>gremlin-java</artifactId>
+            <version>1.5</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tinkerpop.gremlin</groupId>
+            <artifactId>gremlin-groovy</artifactId>
+            <version>1.5</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tinkerpop</groupId>
+            <artifactId>pipes</artifactId>
+            <version>1.0</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
@@ -93,9 +129,10 @@
                         </Bundle-Activator>
                         <Import-Package>
                             org.neo4j.graphdb, org.neo4j.graphdb.traversal, org.neo4j.kernel, !org.neo4j.*,
-                            !com.tinkerpop.*,
+                            !com.tinkerpop.blueprints.*,
                             !org.geotools.*, !org.json.simple.*,
                             !au.com.objectix.jgridshift,
+                            !groovy.lang, !org.codehaus.groovy.*, !jline,
                             !org.apache.commons.collections, !org.apache.commons.pool.*, !org.apache.commons.logging.*,
                             !org.apache.commons.lang,
                             !org.apache.log4j,
@@ -103,8 +140,9 @@
                         </Import-Package>
                         <Embed-Dependency>
                             neo4j-spatial, neo4j-graph-collections,
-                            gt-metadata, gt-opengis, gt-referencing,
-                            jts, jscience
+                            gt-api, gt-opengis, gt-metadata, gt-referencing,
+                            jts, jscience,
+                            gremlin-java, gremlin-groovy, pipes
                         </Embed-Dependency>
                     </instructions>
                 </configuration>
