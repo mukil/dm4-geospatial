@@ -3,7 +3,6 @@ package de.deepamehta.plugins.geospatial;
 import de.deepamehta.plugins.geospatial.service.GeospatialService;
 import de.deepamehta.plugins.geomaps.model.GeoCoordinate;
 
-import de.deepamehta.core.CompositeValue;
 import de.deepamehta.core.Topic;
 import de.deepamehta.core.model.TopicModel;
 import de.deepamehta.core.osgi.PluginActivator;
@@ -16,7 +15,8 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.collections.rtree.NullListener;
 
-import org.neo4j.gis.spatial.SimplePointLayer;
+import org.neo4j.gis.spatial.EditableLayerImpl;
+import org.neo4j.gis.spatial.Layer;
 import org.neo4j.gis.spatial.SpatialDatabaseRecord;
 import org.neo4j.gis.spatial.SpatialDatabaseService;
 import org.neo4j.gis.spatial.pipes.GeoPipeFlow;
@@ -24,8 +24,6 @@ import org.neo4j.gis.spatial.pipes.GeoPipeline;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Point;
-// ### import com.vividsolutions.jts.geom.Geometry;
-// ### import com.vividsolutions.jts.geom.GeometryFactory;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -50,13 +48,11 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     // ------------------------------------------------------------------------------------------------------- Constants
 
-    private static final String DEFAULT_LAYER_NAME = "dm4.geospatial.layer";
-
-    private static final String PROP_GEO_COORD_ID = "geo_coord_id";
+    private static final String DEFAULT_LAYER_NAME = "dm4.geospatial.default_layer";
 
     // ---------------------------------------------------------------------------------------------- Instance Variables
 
-    SimplePointLayer layer;
+    Layer layer;
 
     private Logger logger = Logger.getLogger(getClass().getName());
 
@@ -85,12 +81,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             List<Topic> geoCoords = new ArrayList();
             for (GeoPipeFlow spatialRecord : spatialRecords) {
                 // Note: long distance = spatialRecord.getProperty("OrthodromicDistance")
-                long geoCoordId = (Long) spatialRecord.getRecord().getGeomNode().getProperty(PROP_GEO_COORD_ID, -1L);
-                if (geoCoordId == -1) {
-                    Point p = (Point) spatialRecord.getGeometry();
-                    throw new RuntimeException("A spatial database record misses the \"" + PROP_GEO_COORD_ID +
-                        "\" property (lon=" + p.getX() + ", lat=" + p.getY() + ")");
-                }
+                long geoCoordId = spatialRecord.getRecord().getNodeId();
                 geoCoords.add(dms.getTopic(geoCoordId, true));  // fetchComposite=true
             }
             return geoCoords;
@@ -116,11 +107,13 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         //
         if (spatialDB.containsLayer(DEFAULT_LAYER_NAME)) {
             logger.info("########## Default layer already exists (\"" + DEFAULT_LAYER_NAME + "\")");
-            layer = (SimplePointLayer) spatialDB.getLayer(DEFAULT_LAYER_NAME);
+            layer = spatialDB.getLayer(DEFAULT_LAYER_NAME);
         } else {
             logger.info("########## Creating default layer (\"" + DEFAULT_LAYER_NAME + "\")");
-            layer = spatialDB.createSimplePointLayer(DEFAULT_LAYER_NAME);
+            layer = spatialDB.createLayer(DEFAULT_LAYER_NAME, GeoCoordinateEncoder.class, EditableLayerImpl.class);
         }
+        //
+        ((GeoCoordinateEncoder) layer.getGeometryEncoder()).init(layer, dms);
     }
 
 
@@ -143,26 +136,16 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     }
 
 
+
     // ------------------------------------------------------------------------------------------------- Private Methods
 
     private void indexIfGeoCoordinate(Topic topic) {
         if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
-            logger.info("########## Geo Coordinate created/updated: " + topic);
-            GeoCoordinate geoCoord = geoCoordinate(topic);
-            logger.info("########## Indexing Geo Coordinate " + topic.getId() + " (long=" + geoCoord.lon +
-                ", lat=" + geoCoord.lat + ")");
-            SpatialDatabaseRecord record = layer.add(geoCoord.lon, geoCoord.lat);
-            record.setProperty(PROP_GEO_COORD_ID, topic.getId());
+            logger.info("########## Adding created/updated Geo Coordinate to geospatial index: " + topic);
+            SpatialDatabaseRecord record = layer.add((Node) topic.getDatabaseVendorObject());
+            logger.info("########## Geo Coordinate added to geospatial index (record ID=" + record.getId() + ".." +
+                record.getNodeId() + ".." + record.getGeomNode().getId() + ")");
         }
-    }
-
-    // ### TODO: move to geomaps service?
-    private GeoCoordinate geoCoordinate(Topic geoCoordTopic) {
-        CompositeValue comp = geoCoordTopic.getCompositeValue();
-        return new GeoCoordinate(
-            comp.getDouble("dm4.geomaps.longitude"),
-            comp.getDouble("dm4.geomaps.latitude")
-        );
     }
 
     // ### not used
