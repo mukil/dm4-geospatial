@@ -13,6 +13,7 @@ import de.deepamehta.core.service.PluginService;
 import de.deepamehta.core.service.annotation.ConsumesService;
 import de.deepamehta.core.service.event.PostCreateTopicListener;
 import de.deepamehta.core.service.event.PostUpdateTopicListener;
+import de.deepamehta.core.service.event.PreDeleteTopicListener;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -48,7 +49,8 @@ import java.util.logging.Logger;
 @Produces("application/json")
 public class GeospatialPlugin extends PluginActivator implements GeospatialService, PointFactory,
                                                                                     PostCreateTopicListener,
-                                                                                    PostUpdateTopicListener {
+                                                                                    PostUpdateTopicListener,
+                                                                                    PreDeleteTopicListener {
 
     // ------------------------------------------------------------------------------------------------------- Constants
 
@@ -123,6 +125,9 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         GraphDatabaseService neo4j = (GraphDatabaseService) dms.getDatabaseVendorObject();
         SpatialDatabaseService spatialDB = new SpatialDatabaseService(neo4j);
         //
+        // IMPORTANT: deleting a Neo4j Spatial layer includes deleting the geometry nodes which are at the same time
+        // our Geo Coordinate topics. This results in a corrupted DM database as associations with only 1 player remain.
+        // --> Never delete a layer!!!
         // spatialDB.deleteLayer(DEFAULT_LAYER_NAME, new NullListener());
         //
         if (spatialDB.containsLayer(DEFAULT_LAYER_NAME)) {
@@ -175,6 +180,17 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             logger.info("########## A Geo Coordinate topic was updated: " + topic);
             layer.update(topic.getId(), createPoint(topic));
             logger.info("########## Geo Coordinate " + topic.getId() + " updated in geospatial index");
+        }
+    }
+
+    // ---
+
+    @Override
+    public void preDeleteTopic(Topic topic, Directives directives) {
+        if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
+            logger.info("########## A Geo Coordinate topic was deleted: " + topic);
+            layer.removeFromIndex(topic.getId());
+            logger.info("########## Geo Coordinate " + topic.getId() + " removed from geospatial index");
         }
     }
 
