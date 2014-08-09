@@ -2,12 +2,15 @@ package de.deepamehta.plugins.geospatial;
 
 import de.deepamehta.plugins.geospatial.service.GeospatialService;
 import de.deepamehta.plugins.geomaps.model.GeoCoordinate;
+import de.deepamehta.plugins.geomaps.service.GeomapsService;
 
 import de.deepamehta.core.Topic;
 import de.deepamehta.core.model.TopicModel;
 import de.deepamehta.core.osgi.PluginActivator;
 import de.deepamehta.core.service.ClientState;
 import de.deepamehta.core.service.Directives;
+import de.deepamehta.core.service.PluginService;
+import de.deepamehta.core.service.annotation.ConsumesService;
 import de.deepamehta.core.service.event.PostCreateTopicListener;
 import de.deepamehta.core.service.event.PostUpdateTopicListener;
 
@@ -15,8 +18,8 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.collections.rtree.NullListener;
 
+import org.neo4j.gis.spatial.EditableLayer;
 import org.neo4j.gis.spatial.EditableLayerImpl;
-import org.neo4j.gis.spatial.Layer;
 import org.neo4j.gis.spatial.SpatialDatabaseRecord;
 import org.neo4j.gis.spatial.SpatialDatabaseService;
 import org.neo4j.gis.spatial.pipes.GeoPipeFlow;
@@ -43,7 +46,8 @@ import java.util.logging.Logger;
 @Path("/geospatial")
 @Consumes("application/json")
 @Produces("application/json")
-public class GeospatialPlugin extends PluginActivator implements GeospatialService, PostCreateTopicListener,
+public class GeospatialPlugin extends PluginActivator implements GeospatialService, PointFactory,
+                                                                                    PostCreateTopicListener,
                                                                                     PostUpdateTopicListener {
 
     // ------------------------------------------------------------------------------------------------------- Constants
@@ -52,7 +56,9 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     // ---------------------------------------------------------------------------------------------- Instance Variables
 
-    Layer layer;
+    private EditableLayer layer;
+
+    private GeomapsService geomapsService;
 
     private Logger logger = Logger.getLogger(getClass().getName());
 
@@ -92,6 +98,20 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
 
 
+    // ***********************************
+    // *** PointFactory Implementation ***
+    // ***********************************
+
+
+
+    @Override
+    public Point createPoint(Topic geoCoordTopic) {
+        GeoCoordinate geoCoord = geomapsService.geoCoordinate(geoCoordTopic);
+        return layer.getGeometryFactory().createPoint(new Coordinate(geoCoord.lon, geoCoord.lat));
+    }
+
+
+
     // ****************************
     // *** Hook Implementations ***
     // ****************************
@@ -107,13 +127,27 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         //
         if (spatialDB.containsLayer(DEFAULT_LAYER_NAME)) {
             logger.info("########## Default layer already exists (\"" + DEFAULT_LAYER_NAME + "\")");
-            layer = spatialDB.getLayer(DEFAULT_LAYER_NAME);
+            layer = (EditableLayer) spatialDB.getLayer(DEFAULT_LAYER_NAME);
         } else {
             logger.info("########## Creating default layer (\"" + DEFAULT_LAYER_NAME + "\")");
-            layer = spatialDB.createLayer(DEFAULT_LAYER_NAME, GeoCoordinateEncoder.class, EditableLayerImpl.class);
+            layer = (EditableLayer) spatialDB.createLayer(DEFAULT_LAYER_NAME, GeoCoordinateEncoder.class,
+                                                                              EditableLayerImpl.class);
         }
         //
-        ((GeoCoordinateEncoder) layer.getGeometryEncoder()).init(layer, dms);
+        ((GeoCoordinateEncoder) layer.getGeometryEncoder()).init(this, dms);
+    }
+
+    // ---
+
+    @Override
+    @ConsumesService(GeomapsService.class)
+    public void serviceArrived(PluginService service) {
+        geomapsService = (GeomapsService) service;
+    }
+
+    @Override
+    public void serviceGone(PluginService service) {
+        geomapsService = null;
     }
 
 
@@ -126,27 +160,27 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     @Override
     public void postCreateTopic(Topic topic, ClientState clientState, Directives directives) {
-        indexIfGeoCoordinate(topic);
-    }
-
-    @Override
-    public void postUpdateTopic(Topic topic, TopicModel newModel, TopicModel oldModel, ClientState clientState,
-                                                                                       Directives directives) {
-        indexIfGeoCoordinate(topic);
-    }
-
-
-
-    // ------------------------------------------------------------------------------------------------- Private Methods
-
-    private void indexIfGeoCoordinate(Topic topic) {
         if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
-            logger.info("########## Adding created/updated Geo Coordinate to geospatial index: " + topic);
+            logger.info("########## A Geo Coordinate topic was created: " + topic);
             SpatialDatabaseRecord record = layer.add((Node) topic.getDatabaseVendorObject());
             logger.info("########## Geo Coordinate added to geospatial index (record ID=" + record.getId() + ".." +
                 record.getNodeId() + ".." + record.getGeomNode().getId() + ")");
         }
     }
+
+    @Override
+    public void postUpdateTopic(Topic topic, TopicModel newModel, TopicModel oldModel, ClientState clientState,
+                                                                                       Directives directives) {
+        if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
+            logger.info("########## A Geo Coordinate topic was updated: " + topic);
+            layer.update(topic.getId(), createPoint(topic));
+            logger.info("########## Geo Coordinate " + topic.getId() + " updated in geospatial index");
+        }
+    }
+
+
+
+    // ------------------------------------------------------------------------------------------------- Private Methods
 
     // ### not used
     private Map nodeProperties(Node node) {
