@@ -80,13 +80,22 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     public List<Topic> getTopicsWithinDistance(@PathParam("geo_coord") GeoCoordinate geoCoord,
                                                @PathParam("distance") double maxDistanceInKm) {
         try {
-            // query geospatial index
+            List<Topic> geoCoords = new ArrayList();    // the result
+            // logging
+            int count = layer.getIndex().count();
+            if (count == 0) {
+                // Note: Neo4j Spatial throws a NullPointerException when searching an empty index
+                logger.info("########## Searching the geospatial index ABORTED -- index is empty");
+                return geoCoords;
+            } else {
+                logger.info("########## " + count + " entries in geospatial index");
+            }
+            // search geospatial index
             Coordinate point = new Coordinate(geoCoord.lon, geoCoord.lat);
             GeoPipeline spatialRecords = GeoPipeline.startNearestNeighborLatLonSearch(layer, point, maxDistanceInKm);
                 /* ### .sort("OrthodromicDistance") */
             //
             // build result
-            List<Topic> geoCoords = new ArrayList();
             for (GeoPipeFlow spatialRecord : spatialRecords) {
                 // Note: long distance = spatialRecord.getProperty("OrthodromicDistance")
                 long geoCoordId = spatialRecord.getRecord().getNodeId();
@@ -94,7 +103,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             }
             return geoCoords;
         } catch (Exception e) {
-            throw new RuntimeException("Quering the geospatial index failed", e);
+            throw new RuntimeException("Searching the geospatial index failed", e);
         }
     }
 
