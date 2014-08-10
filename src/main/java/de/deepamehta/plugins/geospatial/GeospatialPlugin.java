@@ -4,20 +4,23 @@ import de.deepamehta.plugins.geospatial.service.GeospatialService;
 import de.deepamehta.plugins.geomaps.model.GeoCoordinate;
 import de.deepamehta.plugins.geomaps.service.GeomapsService;
 
+import de.deepamehta.core.RelatedTopic;
 import de.deepamehta.core.Topic;
 import de.deepamehta.core.model.TopicModel;
 import de.deepamehta.core.osgi.PluginActivator;
 import de.deepamehta.core.service.ClientState;
 import de.deepamehta.core.service.Directives;
 import de.deepamehta.core.service.PluginService;
+import de.deepamehta.core.service.ResultList;
 import de.deepamehta.core.service.annotation.ConsumesService;
 import de.deepamehta.core.service.event.PostCreateTopicListener;
 import de.deepamehta.core.service.event.PostUpdateTopicListener;
 import de.deepamehta.core.service.event.PreDeleteTopicListener;
+import de.deepamehta.core.storage.spi.DeepaMehtaTransaction;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.collections.rtree.NullListener;
+// ### import org.neo4j.collections.rtree.NullListener;
 
 import org.neo4j.gis.spatial.EditableLayer;
 import org.neo4j.gis.spatial.EditableLayerImpl;
@@ -81,15 +84,17 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
                                                @PathParam("distance") double maxDistanceInKm) {
         try {
             List<Topic> geoCoords = new ArrayList();    // the result
+            //
             // logging
             int count = layer.getIndex().count();
             if (count == 0) {
                 // Note: Neo4j Spatial throws a NullPointerException when searching an empty index
-                logger.info("########## Searching the geospatial index ABORTED -- index is empty");
+                logger.info("### Searching the geospatial index ABORTED -- index is empty");
                 return geoCoords;
             } else {
-                logger.info("########## " + count + " entries in geospatial index");
+                logger.info("### " + count + " entries in geospatial index");
             }
+            //
             // search geospatial index
             Coordinate point = new Coordinate(geoCoord.lon, geoCoord.lat);
             GeoPipeline spatialRecords = GeoPipeline.startNearestNeighborLatLonSearch(layer, point, maxDistanceInKm);
@@ -136,19 +141,26 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         //
         // IMPORTANT: deleting a Neo4j Spatial layer includes deleting the geometry nodes which are at the same time
         // our Geo Coordinate topics. This results in a corrupted DM database as associations with only 1 player remain.
-        // --> Never delete a layer!!!
+        // --> Never delete a layer while Geo Coordinate topics exist!!!
         // spatialDB.deleteLayer(DEFAULT_LAYER_NAME, new NullListener());
         //
+        boolean layerCreated = false;
         if (spatialDB.containsLayer(DEFAULT_LAYER_NAME)) {
-            logger.info("########## Default layer already exists (\"" + DEFAULT_LAYER_NAME + "\")");
+            logger.info("### Default layer already exists (\"" + DEFAULT_LAYER_NAME + "\")");
             layer = (EditableLayer) spatialDB.getLayer(DEFAULT_LAYER_NAME);
         } else {
-            logger.info("########## Creating default layer (\"" + DEFAULT_LAYER_NAME + "\")");
+            logger.info("### Creating default layer (\"" + DEFAULT_LAYER_NAME + "\")");
             layer = (EditableLayer) spatialDB.createLayer(DEFAULT_LAYER_NAME, GeoCoordinateEncoder.class,
                                                                               EditableLayerImpl.class);
+            layerCreated = true;
         }
         //
         ((GeoCoordinateEncoder) layer.getGeometryEncoder()).init(this, dms);
+        //
+        // initial indexing
+        if (layerCreated) {
+            indexAllGeoCoordinateTopics();
+        }
     }
 
     // ---
@@ -175,10 +187,8 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     @Override
     public void postCreateTopic(Topic topic, ClientState clientState, Directives directives) {
         if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
-            logger.info("########## A Geo Coordinate topic was created: " + topic);
-            SpatialDatabaseRecord record = layer.add((Node) topic.getDatabaseVendorObject());
-            logger.info("########## Geo Coordinate added to geospatial index (record ID=" + record.getId() + ".." +
-                record.getNodeId() + ".." + record.getGeomNode().getId() + ")");
+            logger.info("### Adding Geo Coordinate to geospatial index (" + topic + ")");
+            addToIndex(topic);
         }
     }
 
@@ -186,9 +196,8 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     public void postUpdateTopic(Topic topic, TopicModel newModel, TopicModel oldModel, ClientState clientState,
                                                                                        Directives directives) {
         if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
-            logger.info("########## A Geo Coordinate topic was updated: " + topic);
-            layer.update(topic.getId(), createPoint(topic));
-            logger.info("########## Geo Coordinate " + topic.getId() + " updated in geospatial index");
+            logger.info("### Updating Geo Coordinate " + topic.getId() + " in geospatial index");
+            updateIndex(topic);
         }
     }
 
@@ -197,15 +206,48 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     @Override
     public void preDeleteTopic(Topic topic, Directives directives) {
         if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
-            logger.info("########## A Geo Coordinate topic was deleted: " + topic);
-            layer.removeFromIndex(topic.getId());
-            logger.info("########## Geo Coordinate " + topic.getId() + " removed from geospatial index");
+            logger.info("### Removing Geo Coordinate " + topic.getId() + " from geospatial index");
+            removeFromIndex(topic);
         }
     }
 
 
 
     // ------------------------------------------------------------------------------------------------- Private Methods
+
+    private void addToIndex(Topic geoCoord) {
+        layer.add((Node) geoCoord.getDatabaseVendorObject());
+    }
+
+    private void updateIndex(Topic geoCoord) {
+        layer.update(geoCoord.getId(), createPoint(geoCoord));
+    }
+
+    private void removeFromIndex(Topic geoCoord) {
+        layer.removeFromIndex(geoCoord.getId());
+    }
+
+    // ---
+
+    private void indexAllGeoCoordinateTopics() {
+        DeepaMehtaTransaction tx = dms.beginTx();
+        try {
+            ResultList<RelatedTopic> geoCoords = dms.getTopics("dm4.geomaps.geo_coordinate", false, 0);
+            logger.info("### Filling initial geospatial index with " + geoCoords.getSize() + " Geo Coordinates");
+            for (Topic geoCoord : geoCoords) {
+                addToIndex(geoCoord);
+            }
+            //
+            tx.success();
+        } catch (Exception e) {
+            logger.warning("ROLLBACK!");
+            throw new RuntimeException("Filling initial geospatial index failed", e);
+        } finally {
+            tx.finish();
+        }
+    }
+
+    // ---
 
     // ### not used
     private Map nodeProperties(Node node) {

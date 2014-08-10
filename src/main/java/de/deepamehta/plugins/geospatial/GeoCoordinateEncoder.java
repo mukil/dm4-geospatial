@@ -34,8 +34,8 @@ public class GeoCoordinateEncoder extends AbstractGeometryEncoder {
     public Geometry decodeGeometry(PropertyContainer container) {
         long geoCoordId = ((Node) container).getId();
         Point point = pointFactory.createPoint(dms.getTopic(geoCoordId, true));     // fetchComposite=true
-        logger.info("########## Decoding Geo Coordinate " + geoCoordId + " (lon=" + point.getX() + ", lat=" +
-            point.getY() + ")");
+        logger.info("### Decoding Geo Coordinate " + geoCoordId + " (lon=" + point.getX() + ", lat=" + point.getY() +
+            ")");
         return point;
     }
 
