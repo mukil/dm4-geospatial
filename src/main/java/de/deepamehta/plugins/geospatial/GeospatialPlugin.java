@@ -3,16 +3,12 @@ package de.deepamehta.plugins.geospatial;
 import de.deepamehta.plugins.geospatial.service.GeospatialService;
 import de.deepamehta.plugins.geomaps.model.GeoCoordinate;
 import de.deepamehta.plugins.geomaps.service.GeomapsService;
-
 import de.deepamehta.core.RelatedTopic;
 import de.deepamehta.core.Topic;
 import de.deepamehta.core.model.TopicModel;
 import de.deepamehta.core.osgi.PluginActivator;
-import de.deepamehta.core.service.ClientState;
-import de.deepamehta.core.service.Directives;
-import de.deepamehta.core.service.PluginService;
+import de.deepamehta.core.service.Inject;
 import de.deepamehta.core.service.ResultList;
-import de.deepamehta.core.service.annotation.ConsumesService;
 import de.deepamehta.core.service.event.PostCreateTopicListener;
 import de.deepamehta.core.service.event.PostUpdateTopicListener;
 import de.deepamehta.core.service.event.PreDeleteTopicListener;
@@ -20,11 +16,8 @@ import de.deepamehta.core.storage.spi.DeepaMehtaTransaction;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.GraphDatabaseService;
-// ### import org.neo4j.collections.rtree.NullListener;
-
 import org.neo4j.gis.spatial.EditableLayer;
 import org.neo4j.gis.spatial.EditableLayerImpl;
-import org.neo4j.gis.spatial.SpatialDatabaseRecord;
 import org.neo4j.gis.spatial.SpatialDatabaseService;
 import org.neo4j.gis.spatial.pipes.GeoPipeFlow;
 import org.neo4j.gis.spatial.pipes.GeoPipeline;
@@ -63,6 +56,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     private EditableLayer layer;
 
+    @Inject
     private GeomapsService geomapsService;
 
     private Logger logger = Logger.getLogger(getClass().getName());
@@ -104,7 +98,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             for (GeoPipeFlow spatialRecord : spatialRecords) {
                 // Note: long distance = spatialRecord.getProperty("OrthodromicDistance")
                 long geoCoordId = spatialRecord.getRecord().getNodeId();
-                geoCoords.add(dms.getTopic(geoCoordId, true));  // fetchComposite=true
+                geoCoords.add(dms.getTopic(geoCoordId));
             }
             return geoCoords;
         } catch (Exception e) {
@@ -163,19 +157,6 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         }
     }
 
-    // ---
-
-    @Override
-    @ConsumesService(GeomapsService.class)
-    public void serviceArrived(PluginService service) {
-        geomapsService = (GeomapsService) service;
-    }
-
-    @Override
-    public void serviceGone(PluginService service) {
-        geomapsService = null;
-    }
-
 
 
     // ********************************
@@ -185,7 +166,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
 
     @Override
-    public void postCreateTopic(Topic topic, ClientState clientState, Directives directives) {
+    public void postCreateTopic(Topic topic) {
         if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
             logger.info("### Adding Geo Coordinate to geospatial index (" + topic + ")");
             addToIndex(topic);
@@ -193,8 +174,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     }
 
     @Override
-    public void postUpdateTopic(Topic topic, TopicModel newModel, TopicModel oldModel, ClientState clientState,
-                                                                                       Directives directives) {
+    public void postUpdateTopic(Topic topic, TopicModel newModel, TopicModel oldModel) {
         if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
             logger.info("### Updating Geo Coordinate " + topic.getId() + " in geospatial index");
             updateIndex(topic);
@@ -204,7 +184,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     // ---
 
     @Override
-    public void preDeleteTopic(Topic topic, Directives directives) {
+    public void preDeleteTopic(Topic topic) {
         if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
             logger.info("### Removing Geo Coordinate " + topic.getId() + " from geospatial index");
             removeFromIndex(topic);
@@ -232,7 +212,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     private void indexAllGeoCoordinateTopics() {
         DeepaMehtaTransaction tx = dms.beginTx();
         try {
-            ResultList<RelatedTopic> geoCoords = dms.getTopics("dm4.geomaps.geo_coordinate", false, 0);
+            ResultList<RelatedTopic> geoCoords = dms.getTopics("dm4.geomaps.geo_coordinate", 0);
             logger.info("### Filling initial geospatial index with " + geoCoords.getSize() + " Geo Coordinates");
             for (Topic geoCoord : geoCoords) {
                 addToIndex(geoCoord);
