@@ -15,15 +15,21 @@ Java API:
 
     List<Topic> getTopicsWithinDistance(GeoCoordinate geoCoord, double maxDistanceInKm)
 
+Returned is a list of Geo Coordinate topics (as defined in the Geomaps plugin).
+
 REST API:
 
     GET /geospatial/<lon>,<lat>/distance/<km>
 
-Returned are Geo Coordinate topics (as defined in the Geomaps plugin).
+The response is an array of Geo Coordinate topics.
+
+If you want include the Geo Coordinate topic's Longitude and Latitude child topics in the result as well append `?include_childs=true` to the request.
 
 
 Example
 -------
+
+Java API:
 
     import de.deepamehta.plugins.geospatial.service.GeospatialService;
     import de.deepamehta.plugins.geomaps.service.GeomapsService;
@@ -43,6 +49,10 @@ Example
 Version History
 ---------------
 
+**0.2** -- Oct 24, 2014
+
+* Compatible with DeepaMehta 4.4
+
 **0.1** -- Aug 10, 2014
 
 * "Within Distance" query
@@ -52,4 +62,4 @@ Version History
 
 ------------
 Jörg Richter  
-Aug 10, 2014
+Oct 24, 2014
