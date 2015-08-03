@@ -14,9 +14,7 @@ import de.deepamehta.core.service.event.PostUpdateTopicListener;
 import de.deepamehta.core.service.event.PreDeleteTopicListener;
 import de.deepamehta.core.storage.spi.DeepaMehtaTransaction;
 
-import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.gis.spatial.EditableLayer;
 import org.neo4j.gis.spatial.EditableLayerImpl;
 import org.neo4j.gis.spatial.SpatialDatabaseService;
 import org.neo4j.gis.spatial.pipes.GeoPipeFlow;
@@ -28,15 +26,16 @@ import com.vividsolutions.jts.geom.Point;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.Consumes;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
+import org.neo4j.gis.spatial.EditableLayer;
+import org.neo4j.gis.spatial.LayerIndexReader;
+import org.neo4j.gis.spatial.SpatialDatabaseRecord;
+import org.neo4j.graphdb.Node;
 
 
 
@@ -50,7 +49,8 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     // ------------------------------------------------------------------------------------------------------- Constants
 
-    private static final String DEFAULT_LAYER_NAME = "dm4.geospatial.default_layer";
+    private static final String DEFAULT_LAYER_NAME      = "dm4.geospatial.default_layer";
+    private static final String GEO_NODE_PROPERTY_ID    = "dm4.geospatial.geometry_node_id";
 
     // ---------------------------------------------------------------------------------------------- Instance Variables
 
@@ -97,9 +97,10 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             // build result
             for (GeoPipeFlow spatialRecord : spatialRecords) {
                 // Note: long distance = spatialRecord.getProperty("OrthodromicDistance")
-                long geoCoordId = spatialRecord.getRecord().getNodeId();
+                long geoCoordId = ( (Number) spatialRecord.getRecord().getProperty("topic_id")).longValue();
                 geoCoords.add(dms.getTopic(geoCoordId));
             }
+            logger.info("Found " + geoCoords.size() + " items nearby the given parameters.");
             return geoCoords;
         } catch (Exception e) {
             throw new RuntimeException("Searching the geospatial index failed", e);
@@ -120,6 +121,10 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         return layer.getGeometryFactory().createPoint(new Coordinate(geoCoord.lon, geoCoord.lat));
     }
 
+    @Override
+    public Point createPointByCoordinates(double lon, double lat) {
+        return layer.getGeometryFactory().createPoint(new Coordinate(lon, lat));
+    }
 
 
     // ****************************
@@ -169,7 +174,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     public void postCreateTopic(Topic topic) {
         if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
             logger.info("### Adding Geo Coordinate to geospatial index (" + topic + ")");
-            addToIndex(topic);
+            addToIndex(topic.loadChildTopics());
         }
     }
 
@@ -177,7 +182,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     public void postUpdateTopic(Topic topic, TopicModel newModel, TopicModel oldModel) {
         if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
             logger.info("### Updating Geo Coordinate " + topic.getId() + " in geospatial index");
-            updateIndex(topic);
+            updateIndex(topic.loadChildTopics());
         }
     }
 
@@ -196,15 +201,34 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     // ------------------------------------------------------------------------------------------------- Private Methods
 
     private void addToIndex(Topic geoCoord) {
-        layer.add((Node) geoCoord.getDatabaseVendorObject());
+        // Old: layer.add((Node) geoCoord.getDatabaseVendorObject()); // this triggers a decodeGeom before encoding
+        geoCoord.loadChildTopics();
+        double longitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.longitude");
+        double latitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.latitude");
+        // Note 1: we store the topic id in the geometry node to retrieve the topics after a query
+        String propertyKeys[] = { "topic_id" };
+        Object values[] = { geoCoord.getId() };
+        // New: We directly (and just) trigger encodeGeometryShape (no decodeGeom is called in our AGE before initial 
+        //      encoding) via not using layer.add(Node) but layer.add(Geometry). Thus we have the child-topic access 
+        //      logic out of AGE and decoding query-results can happen much faster now.
+        SpatialDatabaseRecord sr = layer.add(createPointByCoordinates(longitude, latitude), propertyKeys, values);
+        // Note 2: we store the geometry node in a dm4-node property to easify alteration of index
+        geoCoord.setProperty(GEO_NODE_PROPERTY_ID, sr.getGeomNode().getId(), false);
     }
 
     private void updateIndex(Topic geoCoord) {
-        layer.update(geoCoord.getId(), createPoint(geoCoord));
+        // get updated values
+        geoCoord.loadChildTopics();
+        double longitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.longitude");
+        double latitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.latitude");
+        // update indexed geometry node
+        long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
+        layer.update(nodeId, createPointByCoordinates(longitude, latitude));
     }
 
     private void removeFromIndex(Topic geoCoord) {
-        layer.removeFromIndex(geoCoord.getId());
+        long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
+        layer.removeFromIndex(nodeId);
     }
 
     // ---
@@ -215,7 +239,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             ResultList<RelatedTopic> geoCoords = dms.getTopics("dm4.geomaps.geo_coordinate", 0);
             logger.info("### Filling initial geospatial index with " + geoCoords.getSize() + " Geo Coordinates");
             for (Topic geoCoord : geoCoords) {
-                addToIndex(geoCoord);
+                addToIndex(geoCoord.loadChildTopics());
             }
             //
             tx.success();
@@ -227,14 +251,4 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         }
     }
 
-    // ---
-
-    // ### not used
-    private Map nodeProperties(Node node) {
-        Map props = new HashMap();
-        for (String key : node.getPropertyKeys()) {
-            props.put(key, node.getProperty(key));
-        }
-        return props;
-    }
 }

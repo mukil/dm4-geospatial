@@ -49,6 +49,13 @@ Java API:
 Version History
 ---------------
 
+**0.2.1-SNAPSHOT** -- UPCOMING
+
+* Much faster build of query-results (5-6 times faster).
+  Query Example A: 0.5km radius with 31 results (700-800ms instead of 5000ms)
+  Query Example B: 1.18km radius with 141 results (near 2600ms instead of 10200ms)
+  Plugin maintains previous accuracy and its automatic (index) update-functionality.
+
 **0.2** -- Oct 24, 2014
 
 * Compatible with DeepaMehta 4.4
@@ -59,7 +66,6 @@ Version History
 * Based on Neo4j Spatial
 * Compatible with DeepaMehta 4.4-SNAPSHOT
 
-
 ------------
-Jörg Richter  
-Oct 24, 2014
+Jörg Richter & Malte Reißig
+Aug 03 , 2015
