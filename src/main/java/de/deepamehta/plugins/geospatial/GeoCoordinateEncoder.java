@@ -48,7 +48,7 @@ public class GeoCoordinateEncoder extends AbstractGeometryEncoder {
         double xLon = ( (Number) container.getProperty(LON_PROPERTY)).doubleValue();
         double yLat = ( (Number) container.getProperty(LAT_PROPERTY)).doubleValue();
         long geoCoordId = ( (Number) container.getProperty("topic_id")).longValue();
-        logger.info("### Decoding Geo Coordinate (lon=" + xLon+ ", lat=" + yLat +"), "
+        logger.fine("### Decoding Geo Coordinate (lon=" + xLon+ ", lat=" + yLat +"), "
                 + "Topic ID: " + geoCoordId);
         return pointFactory.createPointByCoordinates(xLon, yLat);
     }
