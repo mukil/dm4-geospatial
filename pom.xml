@@ -13,14 +13,14 @@
     <parent>
         <groupId>de.deepamehta</groupId>
         <artifactId>deepamehta-plugin-parent</artifactId>
-        <version>4.4</version>
+        <version>4.4.3</version>
     </parent>
 
     <dependencies>
         <dependency>
             <groupId>de.deepamehta</groupId>
             <artifactId>deepamehta-geomaps</artifactId>
-            <version>4.4</version>
+            <version>4.4.3</version>
             <scope>provided</scope>
         </dependency>
         <!-- Neo4j -->

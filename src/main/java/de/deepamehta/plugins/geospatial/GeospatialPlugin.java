@@ -33,9 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import org.neo4j.gis.spatial.EditableLayer;
-import org.neo4j.gis.spatial.LayerIndexReader;
 import org.neo4j.gis.spatial.SpatialDatabaseRecord;
-import org.neo4j.graphdb.Node;
 
 
 
