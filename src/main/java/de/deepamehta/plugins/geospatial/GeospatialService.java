@@ -1,15 +1,14 @@
-package de.deepamehta.plugins.geospatial.service;
+package de.deepamehta.plugins.geospatial;
 
 import de.deepamehta.plugins.geomaps.model.GeoCoordinate;
 
 import de.deepamehta.core.Topic;
-import de.deepamehta.core.service.PluginService;
 
 import java.util.List;
 
 
 
-public interface GeospatialService extends PluginService {
+public interface GeospatialService {
 
     List<Topic> getTopicsWithinDistance(GeoCoordinate geoCoord, double maxDistanceInKm);
 }

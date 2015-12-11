@@ -1,8 +1,7 @@
 package de.deepamehta.plugins.geospatial;
 
-import de.deepamehta.plugins.geospatial.service.GeospatialService;
 import de.deepamehta.plugins.geomaps.model.GeoCoordinate;
-import de.deepamehta.plugins.geomaps.service.GeomapsService;
+import de.deepamehta.plugins.geomaps.GeomapsService;
 import de.deepamehta.core.RelatedTopic;
 import de.deepamehta.core.Topic;
 import de.deepamehta.core.model.TopicModel;

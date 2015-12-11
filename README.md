@@ -31,8 +31,8 @@ Example
 
 Java API:
 
-    import de.deepamehta.plugins.geospatial.service.GeospatialService;
-    import de.deepamehta.plugins.geomaps.service.GeomapsService;
+    import de.deepamehta.plugins.geospatial.GeospatialService;
+    import de.deepamehta.plugins.geomaps.GeomapsService;
     import de.deepamehta.plugins.geomaps.model.GeoCoordinate;
 
     GeospatialService geospatialService;
@@ -49,7 +49,11 @@ Java API:
 Version History
 ---------------
 
-**0.2.1-SNAPSHOT** -- UPCOMING
+**0.2.2-SNAPSHOT** -- CURRENT
+
+* Compatible with DeepaMehta 4.7
+
+**0.2.1-SNAPSHOT** -- UNRELEASED
 
 * Much faster build of query-results (5-6 times faster).
   Query Example A: 0.5km radius with 31 results (700-800ms instead of 5000ms)
@@ -68,4 +72,4 @@ Version History
 
 ------------
 Jörg Richter & Malte Reißig
-Aug 03 , 2015
+Dec 11 , 2015
