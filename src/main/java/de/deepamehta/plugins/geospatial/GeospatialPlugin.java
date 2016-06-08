@@ -95,7 +95,14 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             for (GeoPipeFlow spatialRecord : spatialRecords) {
                 // Note: long distance = spatialRecord.getProperty("OrthodromicDistance")
                 long geoCoordId = ( (Number) spatialRecord.getRecord().getProperty("topic_id")).longValue();
-                geoCoords.add(dms.getTopic(geoCoordId));
+                try {
+                    geoCoords.add(dms.getTopic(geoCoordId));
+                } catch (RuntimeException re) {
+                    if (re.getCause().toString().contains("AccessControlException")) {
+                        logger.fine("Skipped to load geo coordinate topic, the requesting user has not "
+                            + "the necessary permission: \"" + re.getCause().getMessage() + "\"");
+                    } else throw new RuntimeException(re);
+                }
             }
             logger.info("Found " + geoCoords.size() + " items nearby the given parameters.");
             return geoCoords;
@@ -170,7 +177,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     @Override
     public void postCreateTopic(Topic topic) {
         if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
-            logger.info("### Adding Geo Coordinate to geospatial index (" + topic + ")");
+            logger.info("### Adding Geo Coordinate to geospatial index (" + topic.getId() + ")");
             addToIndex(topic.loadChildTopics());
         }
     }
