@@ -1,12 +1,12 @@
 package de.deepamehta.plugins.geospatial;
 
 import com.vividsolutions.jts.geom.Coordinate;
-import de.deepamehta.core.service.DeepaMehtaService;
 
 import org.neo4j.gis.spatial.AbstractGeometryEncoder;
 import org.neo4j.graphdb.PropertyContainer;
 
 import com.vividsolutions.jts.geom.Geometry;
+import de.deepamehta.core.service.CoreService;
 
 import java.util.logging.Logger;
 
@@ -55,7 +55,7 @@ public class GeoCoordinateEncoder extends AbstractGeometryEncoder {
 
     // ----------------------------------------------------------------------------------------- Package Private Methods
 
-    void init(PointFactory pointFactory, DeepaMehtaService dms) {
+    void init(PointFactory pointFactory, CoreService dms) {
         this.pointFactory = pointFactory;
     }
 }

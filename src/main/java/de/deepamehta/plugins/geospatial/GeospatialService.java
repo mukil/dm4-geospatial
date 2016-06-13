@@ -1,6 +1,6 @@
 package de.deepamehta.plugins.geospatial;
 
-import de.deepamehta.plugins.geomaps.model.GeoCoordinate;
+import de.deepamehta.geomaps.model.GeoCoordinate;
 
 import de.deepamehta.core.Topic;
 
