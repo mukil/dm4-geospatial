@@ -1,7 +1,5 @@
 package de.deepamehta.plugins.geospatial;
 
-import de.deepamehta.geomaps.model.GeoCoordinate;
-import de.deepamehta.geomaps.GeomapsService;
 import de.deepamehta.core.Topic;
 import de.deepamehta.core.model.TopicModel;
 import de.deepamehta.core.osgi.PluginActivator;
@@ -19,6 +17,8 @@ import org.neo4j.gis.spatial.pipes.GeoPipeline;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Point;
+import de.deepamehta.accesscontrol.AccessControlService;
+import de.deepamehta.core.service.accesscontrol.Operation;
 import de.deepamehta.geomaps.GeomapsService;
 import de.deepamehta.geomaps.model.GeoCoordinate;
 
@@ -52,6 +52,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     // ---------------------------------------------------------------------------------------------- Instance Variables
 
     private EditableLayer layer;
+    @Inject private AccessControlService acService;
 
     @Inject
     private GeomapsService geomapsService;
@@ -74,6 +75,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     public List<Topic> getTopicsWithinDistance(@PathParam("geo_coord") GeoCoordinate geoCoord,
                                                @PathParam("distance") double maxDistanceInKm) {
         try {
+            String username = acService.getUsername();
             List<Topic> geoCoords = new ArrayList();    // the result
             //
             // logging
@@ -95,13 +97,11 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             for (GeoPipeFlow spatialRecord : spatialRecords) {
                 // Note: long distance = spatialRecord.getProperty("OrthodromicDistance")
                 long geoCoordId = ( (Number) spatialRecord.getRecord().getProperty("topic_id")).longValue();
-                try {
+                if (dm4.getAccessControl().hasPermission(username, Operation.READ, geoCoordId)) {
                     geoCoords.add(dm4.getTopic(geoCoordId));
-                } catch (RuntimeException re) {
-                    if (re.getCause().toString().contains("AccessControlException")) {
-                        logger.fine("Skipped to load geo coordinate topic, the requesting user has not "
-                            + "the necessary permission: \"" + re.getCause().getMessage() + "\"");
-                    } else throw new RuntimeException(re);
+                } else {
+                    logger.fine("Skipped to load geo coordinate topic, cause user (\""+username+"\") has no READ"
+                        + " permission for topci id");
                 }
             }
             logger.info("Found " + geoCoords.size() + " items nearby the given parameters.");
