@@ -51,7 +51,10 @@ Version History
 
 **0.2.2-SNAPSHOT** -- CURRENT
 
-* Compatible with DeepaMehta 4.7
+* Compatible with DeepaMehta 4.8
+* Checks READ permissions for the requesting user automatically<br/>
+  while assembling the resulting set of geo coordinate topics
+* Removed unused code
 
 **0.2.1-SNAPSHOT** -- UNRELEASED
 
