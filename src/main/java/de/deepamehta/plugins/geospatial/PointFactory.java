@@ -9,4 +9,7 @@ import com.vividsolutions.jts.geom.Point;
 interface PointFactory {
 
     Point createPoint(Topic geoCoordTopic);
+
+    Point createPointByCoordinates(double longitude, double latitude);
+
 }
