@@ -47,16 +47,15 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     // ------------------------------------------------------------------------------------------------------- Constants
 
-    private static final String DEFAULT_LAYER_NAME      = "dm4.geospatial.default_layer";
-    private static final String GEO_NODE_PROPERTY_ID    = "dm4.geospatial.geometry_node_id";
+    public static final String DEFAULT_LAYER_NAME      = "dm4.geospatial.default_layer";
+    public static final String GEO_NODE_PROPERTY_ID    = "dm4.geospatial.geometry_node_id";
 
     // ---------------------------------------------------------------------------------------------- Instance Variables
 
     private EditableLayer layer;
-    @Inject private AccessControlService acService;
 
-    @Inject
-    private GeomapsService geomapsService;
+    @Inject private AccessControlService acService;
+    // @Inject private GeomapsService geomapsService;
 
     private Logger logger = Logger.getLogger(getClass().getName());
 
