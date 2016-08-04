@@ -49,7 +49,7 @@ Java API:
 Version History
 ---------------
 
-**0.3** -- Aug 04, 2016
+**0.3** -- Aug 05, 2016
 
 * Compatible with DeepaMehta 4.8
 * Checks READ permissions for the requesting user automatically<br/>
@@ -73,4 +73,4 @@ Note: This release is not compatible with one of the previous releases. If you h
 
 ------------
 Jörg Richter & Malte Reißig<br/>
-Aug 04, 2016
+Aug 05, 2016
