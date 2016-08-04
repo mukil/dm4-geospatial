@@ -54,12 +54,12 @@ Version History
 * Compatible with DeepaMehta 4.8
 * Checks READ permissions for the requesting user automatically<br/>
   while assembling the resulting set of geo coordinate topics
-* Much faster build of query-results (5-6 times faster).
-  Query Example A: 0.5km radius with 31 results (700-800ms instead of 5000ms)
-  Query Example B: 1.18km radius with 141 results (near 2600ms instead of 10200ms)
+* Much faster build of query-results (5-6 times faster).<br/>
+  Query Example A: 0.5km radius with 31 results (700-800ms instead of 5000ms)<br/>
+  Query Example B: 1.18km radius with 141 results (near 2600ms instead of 10200ms)<br/>
   Plugin maintains previous accuracy and its automatic (index) update-functionality.
 
-Note: This release is not compatible with one of the previous releases. If you have a deepamehta database with a spatial index created with version `0.2` or `0.1 of this plugin` please contact us and we will most probably find a way to upgrade your data.
+Note: This release is not compatible with one of the previous releases. If you have a deepamehta database with a spatial index created with version `0.2` or `0.1` of this plugin please contact us and we will most probably find a way to upgrade your data.
 
 **0.2** -- Oct 24, 2014
 
@@ -72,5 +72,5 @@ Note: This release is not compatible with one of the previous releases. If you h
 * Compatible with DeepaMehta 4.4-SNAPSHOT
 
 ------------
-Jörg Richter & Malte Reißig
+Jörg Richter & Malte Reißig<br/>
 Aug 04, 2016
