@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.logging.Logger;
 import org.neo4j.gis.spatial.EditableLayer;
 import org.neo4j.gis.spatial.SpatialDatabaseRecord;
+import org.neo4j.graphdb.NotFoundException;
 
 
 
@@ -214,7 +215,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         //      encoding) via not using layer.add(Node) but layer.add(Geometry).
         SpatialDatabaseRecord sr = layer.add(createPointByCoordinates(longitude, latitude), propertyKeys, values);
         // Note 2: we store a reference to the geometry node in a dm4-node property to easify alteration of index
-        geoCoord.setProperty(GEO_NODE_PROPERTY_ID, sr.getGeomNode().getId(), false);
+        geoCoord.setProperty(GEO_NODE_PROPERTY_ID, sr.getGeomNode().getId(), true);
     }
 
     private void updateIndex(Topic geoCoord) {
@@ -223,13 +224,23 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         double longitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.longitude");
         double latitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.latitude");
         // update indexed geometry node
-        long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
-        layer.update(nodeId, createPointByCoordinates(longitude, latitude));
+        try {
+            long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
+            layer.update(nodeId, createPointByCoordinates(longitude, latitude));
+        } catch (NotFoundException nfe) {
+            logger.severe("### Geo Coordinate (id="+geoCoord.getId()+") has no geometry node id set/indexed as property"
+                + " - Spatial index layer can not be updated");
+        }
     }
 
     private void removeFromIndex(Topic geoCoord) {
-        long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
-        layer.removeFromIndex(nodeId);
+        try {
+            long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
+            layer.removeFromIndex(nodeId);
+        } catch (NotFoundException nfe) {
+            logger.severe("### Geo Coordinate (id="+geoCoord.getId()+") has no geometry node id set/indexed as property"
+                + "- Node can not be removed from spatial index layer");
+        }
     }
 
     // ---
