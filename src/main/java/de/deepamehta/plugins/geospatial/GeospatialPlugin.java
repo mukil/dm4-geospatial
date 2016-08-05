@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.logging.Logger;
 import org.neo4j.gis.spatial.EditableLayer;
 import org.neo4j.gis.spatial.SpatialDatabaseRecord;
+import org.neo4j.graphdb.NotFoundException;
 
 
 
@@ -46,16 +47,15 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     // ------------------------------------------------------------------------------------------------------- Constants
 
-    private static final String DEFAULT_LAYER_NAME      = "dm4.geospatial.default_layer";
-    private static final String GEO_NODE_PROPERTY_ID    = "dm4.geospatial.geometry_node_id";
+    public static final String DEFAULT_LAYER_NAME      = "dm4.geospatial.default_layer";
+    public static final String GEO_NODE_PROPERTY_ID    = "dm4.geospatial.geometry_node_id";
 
     // ---------------------------------------------------------------------------------------------- Instance Variables
 
     private EditableLayer layer;
-    @Inject private AccessControlService acService;
 
-    @Inject
-    private GeomapsService geomapsService;
+    @Inject private AccessControlService acService;
+    // @Inject private GeomapsService geomapsService;
 
     private Logger logger = Logger.getLogger(getClass().getName());
 
@@ -120,12 +120,6 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
 
     @Override
-    public Point createPoint(Topic geoCoordTopic) {
-        GeoCoordinate geoCoord = geomapsService.geoCoordinate(geoCoordTopic);
-        return layer.getGeometryFactory().createPoint(new Coordinate(geoCoord.lon, geoCoord.lat));
-    }
-
-    @Override
     public Point createPointByCoordinates(double lon, double lat) {
         return layer.getGeometryFactory().createPoint(new Coordinate(lon, lat));
     }
@@ -146,6 +140,9 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         // our Geo Coordinate topics. This results in a corrupted DM database as associations with only 1 player remain.
         // --> Never delete a layer while Geo Coordinate topics exist!!!
         // spatialDB.deleteLayer(DEFAULT_LAYER_NAME, new NullListener());
+        // UPDATE: As of 0.2.2 this should not play a role because the geometry nodes are not Geo Coordinate
+        // topics anymore but are extra neo4j nodes. ### Test and confirm this. Deleting spatial index will not corrupt
+        // the DeepaMehta database anymore.
         //
         boolean layerCreated = false;
         if (spatialDB.containsLayer(DEFAULT_LAYER_NAME)) {
@@ -209,15 +206,15 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         geoCoord.loadChildTopics();
         double longitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.longitude");
         double latitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.latitude");
-        // Note 1: we store the topic id in the geometry node to retrieve the topics after a query
+        // Note 1: we store the reference to the geo coordinate topic (id) in the geometry node to assbmel the
+        // resulting list of topics after a spatial query
         String propertyKeys[] = { "topic_id" };
         Object values[] = { geoCoord.getId() };
         // New: We directly (and just) trigger encodeGeometryShape (no decodeGeom is called in our AGE before initial 
-        //      encoding) via not using layer.add(Node) but layer.add(Geometry). Thus we have the child-topic access 
-        //      logic out of AGE and decoding query-results can happen much faster now.
+        //      encoding) via not using layer.add(Node) but layer.add(Geometry).
         SpatialDatabaseRecord sr = layer.add(createPointByCoordinates(longitude, latitude), propertyKeys, values);
-        // Note 2: we store the geometry node in a dm4-node property to easify alteration of index
-        geoCoord.setProperty(GEO_NODE_PROPERTY_ID, sr.getGeomNode().getId(), false);
+        // Note 2: we store a reference to the geometry node in a dm4-node property to easify alteration of index
+        geoCoord.setProperty(GEO_NODE_PROPERTY_ID, sr.getGeomNode().getId(), true);
     }
 
     private void updateIndex(Topic geoCoord) {
@@ -226,13 +223,23 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         double longitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.longitude");
         double latitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.latitude");
         // update indexed geometry node
-        long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
-        layer.update(nodeId, createPointByCoordinates(longitude, latitude));
+        try {
+            long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
+            layer.update(nodeId, createPointByCoordinates(longitude, latitude));
+        } catch (NotFoundException nfe) {
+            logger.severe("### Geo Coordinate (id="+geoCoord.getId()+") has no geometry node id set/indexed as property"
+                + " - Spatial index layer can not be updated");
+        }
     }
 
     private void removeFromIndex(Topic geoCoord) {
-        long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
-        layer.removeFromIndex(nodeId);
+        try {
+            long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
+            layer.removeFromIndex(nodeId);
+        } catch (NotFoundException nfe) {
+            logger.severe("### Geo Coordinate (id="+geoCoord.getId()+") has no geometry node id set/indexed as property"
+                + "- Node can not be removed from spatial index layer");
+        }
     }
 
     // ---
