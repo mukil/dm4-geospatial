@@ -16,11 +16,15 @@ import org.neo4j.gis.spatial.pipes.GeoPipeFlow;
 import org.neo4j.gis.spatial.pipes.GeoPipeline;
 
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.Point;
 import de.deepamehta.accesscontrol.AccessControlService;
+import de.deepamehta.core.service.Transactional;
 import de.deepamehta.core.service.accesscontrol.Operation;
-import de.deepamehta.geomaps.GeomapsService;
 import de.deepamehta.geomaps.model.GeoCoordinate;
+import java.io.IOException;
+import java.nio.charset.Charset;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -30,8 +34,12 @@ import javax.ws.rs.Consumes;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
+import javax.ws.rs.core.Response;
 import org.neo4j.gis.spatial.EditableLayer;
+import org.neo4j.gis.spatial.Layer;
+import org.neo4j.gis.spatial.ShapefileImporter;
 import org.neo4j.gis.spatial.SpatialDatabaseRecord;
 import org.neo4j.graphdb.NotFoundException;
 
@@ -47,15 +55,16 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     // ------------------------------------------------------------------------------------------------------- Constants
 
-    public static final String DEFAULT_LAYER_NAME      = "dm4.geospatial.default_layer";
-    public static final String GEO_NODE_PROPERTY_ID    = "dm4.geospatial.geometry_node_id";
+    public static final String DEFAULT_POINT_LAYER_NAME     = "dm4.geospatial.default_layer";
+    public static final String DEFAULT_GEOMETRY_LAYER_NAME  = "dm4.geospatial.default_geometry_layer";
+    public static final String GEO_NODE_PROPERTY_ID         = "dm4.geospatial.geometry_node_id";
 
     // ---------------------------------------------------------------------------------------------- Instance Variables
 
-    private EditableLayer layer;
+    private EditableLayer pointLayer;
+    private EditableLayer geometryLayer;
 
     @Inject private AccessControlService acService;
-    // @Inject private GeomapsService geomapsService;
 
     private Logger logger = Logger.getLogger(getClass().getName());
 
@@ -68,6 +77,71 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     // ****************************************
 
 
+    @GET
+    @Path("/add/geometry/{absoluteFilePath}")
+    @Transactional
+    public Response addGeometryLayer(@PathParam("absoluteFilePath") String absoluteFile) {
+        GraphDatabaseService neo4j = (GraphDatabaseService) dm4.getDatabaseVendorObject();
+        SpatialDatabaseService spatialDB = new SpatialDatabaseService(neo4j);
+        logger.info("### Storing new layer (\"" + DEFAULT_GEOMETRY_LAYER_NAME + "\")");
+        try {
+            if (spatialDB.containsLayer(DEFAULT_GEOMETRY_LAYER_NAME)) {
+                geometryLayer = (EditableLayer) spatialDB.getLayer(DEFAULT_GEOMETRY_LAYER_NAME);
+                spatialDB.deleteLayer(DEFAULT_GEOMETRY_LAYER_NAME,
+                    new ProgressLoggingListener("Deleting layer '" + DEFAULT_GEOMETRY_LAYER_NAME + "'", logger));
+                logger.info("### Removed previously stored geometry layer (\"" + DEFAULT_GEOMETRY_LAYER_NAME + "\")");
+            }
+            ShapefileImporter importer = new ShapefileImporter(neo4j);
+            // The following line requires the "gt-api" module at compile time.
+            importer.importFile(absoluteFile, DEFAULT_GEOMETRY_LAYER_NAME, Charset.forName("UTF-8"));
+            logger.info("Created Shapefile Geometry Layer with \"" + absoluteFile + "\"");
+            return Response.noContent().build();
+        } catch (Exception ex) {
+            logger.severe("IO/Error occured during import of shapefile");
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @GET
+    @Path("/geometrylayer")
+    @Transactional
+    public Response inspectGeometryLayer() {
+        GraphDatabaseService neo4j = (GraphDatabaseService) dm4.getDatabaseVendorObject();
+        SpatialDatabaseService spatialDB = new SpatialDatabaseService(neo4j);
+        try {
+            if (spatialDB.containsLayer(DEFAULT_GEOMETRY_LAYER_NAME)) {
+                geometryLayer = (EditableLayer) spatialDB.getLayer(DEFAULT_GEOMETRY_LAYER_NAME);
+                logger.info("### Inspecting layer (\"" + DEFAULT_GEOMETRY_LAYER_NAME + "\")");
+                countGeometryIndex(DEFAULT_GEOMETRY_LAYER_NAME);
+            } else {
+                throw new RuntimeException("Geometry layer does not exist");
+            }
+            GeometryFactory geometryFactory = new GeometryFactory();
+            Coordinate coordinate = new Coordinate(13.390098, 52.524138);
+            Point point = geometryFactory.createPoint(coordinate);
+            GeoPipeline spatialRecords = GeoPipeline.start(geometryLayer);
+            // GeoPipeline spatialRecords = GeoPipeline.startWithinSearch(geometryLayer, pointGeo);
+            for (GeoPipeFlow spatialRecord : spatialRecords) {
+                SpatialDatabaseRecord entry = spatialRecord.getRecord();
+                Geometry geometry = entry.getGeometry();
+                if (point.within(geometry)) {
+                    logger.info("GREAT, OK! Point \"" + point + "\" is WITHIN => " +  entry.getId());
+                    logGeometryAttributes(entry);
+                }
+                if (geometry.covers(point)) {
+                    logger.info("GREAT, OK! Point \"" + point + "\" is COVERED BY => " +  entry.getId());
+                    logGeometryAttributes(entry);
+                }
+            }
+            return Response.ok().build();
+        } catch (IOException ex) {
+            logger.severe("Error occured during inspecting of geometry layer");
+            throw new RuntimeException(ex);
+        } catch (RuntimeException ex) {
+            logger.severe("Error occured during inspecting of geometry layer");
+            throw new RuntimeException(ex);
+        }
+    }
 
     @GET
     @Path("/{geo_coord}/distance/{distance}")
@@ -79,7 +153,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             List<Topic> geoCoords = new ArrayList();    // the result
             //
             // logging
-            int count = layer.getIndex().count();
+            int count = pointLayer.getIndex().count();
             if (count == 0) {
                 // Note: Neo4j Spatial throws a NullPointerException when searching an empty index
                 logger.info("### Searching the geospatial index ABORTED -- index is empty");
@@ -90,7 +164,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             //
             // search geospatial index
             Coordinate point = new Coordinate(geoCoord.lon, geoCoord.lat);
-            GeoPipeline spatialRecords = GeoPipeline.startNearestNeighborLatLonSearch(layer, point, maxDistanceInKm);
+            GeoPipeline spatialRecords = GeoPipeline.startNearestNeighborLatLonSearch(pointLayer, point, maxDistanceInKm);
                 /* ### .sort("OrthodromicDistance") */
             //
             // build result
@@ -121,7 +195,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     @Override
     public Point createPointByCoordinates(double lon, double lat) {
-        return layer.getGeometryFactory().createPoint(new Coordinate(lon, lat));
+        return pointLayer.getGeometryFactory().createPoint(new Coordinate(lon, lat));
     }
 
 
@@ -145,17 +219,21 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         // the DeepaMehta database anymore.
         //
         boolean layerCreated = false;
-        if (spatialDB.containsLayer(DEFAULT_LAYER_NAME)) {
-            logger.info("### Default layer already exists (\"" + DEFAULT_LAYER_NAME + "\")");
-            layer = (EditableLayer) spatialDB.getLayer(DEFAULT_LAYER_NAME);
+        if (spatialDB.containsLayer(DEFAULT_POINT_LAYER_NAME)) {
+            logger.info("### Default layer initialized, already exists. (\"" + DEFAULT_POINT_LAYER_NAME + "\")");
+            pointLayer = (EditableLayer) spatialDB.getLayer(DEFAULT_POINT_LAYER_NAME);
         } else {
-            logger.info("### Creating default layer (\"" + DEFAULT_LAYER_NAME + "\")");
-            layer = (EditableLayer) spatialDB.createLayer(DEFAULT_LAYER_NAME, GeoCoordinateEncoder.class,
+            logger.info("### Creating layer (\"" + DEFAULT_POINT_LAYER_NAME + "\")");
+            pointLayer = (EditableLayer) spatialDB.createLayer(DEFAULT_POINT_LAYER_NAME, GeoCoordinateEncoder.class,
                                                                               EditableLayerImpl.class);
             layerCreated = true;
         }
+        if (spatialDB.containsLayer(DEFAULT_GEOMETRY_LAYER_NAME)) {
+            logger.info("### Default geometry layer initialized, already exists. (\"" + DEFAULT_GEOMETRY_LAYER_NAME + "\")");
+            geometryLayer = (EditableLayer) spatialDB.getLayer(DEFAULT_GEOMETRY_LAYER_NAME);
+        }
         //
-        ((GeoCoordinateEncoder) layer.getGeometryEncoder()).init(this, dm4);
+        ((GeoCoordinateEncoder) pointLayer.getGeometryEncoder()).init(this, dm4);
         //
         // initial indexing
         if (layerCreated) {
@@ -201,6 +279,27 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     // ------------------------------------------------------------------------------------------------- Private Methods
 
+    private void logGeometryAttributes(SpatialDatabaseRecord entry) {
+        logger.info("=> Inspecting spatial database entry => " +  entry.getId());
+        Map<String, Object> props = entry.getProperties();
+        for (String key : props.keySet()) {
+            logger.info("=> Attribute \""+key+"\": \"" +  props.get(key).toString() + "\"");
+        }
+    }
+
+    private void countGeometryIndex(String layerName) throws IOException {
+        GraphDatabaseService neo4j = (GraphDatabaseService) dm4.getDatabaseVendorObject();
+        SpatialDatabaseService spatial = new SpatialDatabaseService(neo4j);
+        Layer layer = spatial.getLayer(layerName);
+        if (layer.getIndex().count() < 1) {
+            logger.warning("Checking Layer Warning: index count zero: " + layer.getName());
+        }
+        logger.info("Checking Layer: '" + layer.getName() + "' has " + layer.getIndex().count() + " entries in the index");
+        /** DataStore store = new Neo4jSpatialDataStoreFactory();
+        SimpleFeatureCollection features = store.getFeatureSource(layer.getName()).getFeatures();
+        logger.info("Checking Layer: '" + layer.getName() + "' has " + features.size() + " features"); **/
+    }
+
     private void addToIndex(Topic geoCoord) {
         // Old: layer.add((Node) geoCoord.getDatabaseVendorObject()); // this triggers a decodeGeom before encoding
         geoCoord.loadChildTopics();
@@ -212,7 +311,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         Object values[] = { geoCoord.getId() };
         // New: We directly (and just) trigger encodeGeometryShape (no decodeGeom is called in our AGE before initial 
         //      encoding) via not using layer.add(Node) but layer.add(Geometry).
-        SpatialDatabaseRecord sr = layer.add(createPointByCoordinates(longitude, latitude), propertyKeys, values);
+        SpatialDatabaseRecord sr = pointLayer.add(createPointByCoordinates(longitude, latitude), propertyKeys, values);
         // Note 2: we store a reference to the geometry node in a dm4-node property to easify alteration of index
         geoCoord.setProperty(GEO_NODE_PROPERTY_ID, sr.getGeomNode().getId(), true);
     }
@@ -225,7 +324,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         // update indexed geometry node
         try {
             long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
-            layer.update(nodeId, createPointByCoordinates(longitude, latitude));
+            pointLayer.update(nodeId, createPointByCoordinates(longitude, latitude));
         } catch (NotFoundException nfe) {
             logger.severe("### Geo Coordinate (id="+geoCoord.getId()+") has no geometry node id set/indexed as property"
                 + " - Spatial index layer can not be updated");
@@ -235,7 +334,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     private void removeFromIndex(Topic geoCoord) {
         try {
             long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
-            layer.removeFromIndex(nodeId);
+            pointLayer.removeFromIndex(nodeId);
         } catch (NotFoundException nfe) {
             logger.severe("### Geo Coordinate (id="+geoCoord.getId()+") has no geometry node id set/indexed as property"
                 + "- Node can not be removed from spatial index layer");

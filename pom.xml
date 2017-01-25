@@ -7,7 +7,7 @@
     <name>DeepaMehta 4 Geospatial</name>
     <groupId>de.deepamehta</groupId>
     <artifactId>dm48-geospatial</artifactId>
-    <version>0.3</version>
+    <version>0.3.1-SNAPSHOT</version>
     <packaging>bundle</packaging>
 
     <parent>
@@ -54,7 +54,11 @@
             <groupId>org.geotools</groupId>
             <artifactId>gt-api</artifactId>
             <version>8.0</version>
-            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-shapefile</artifactId>
+            <version>8.0</version>
         </dependency>
         <dependency>
             <groupId>org.geotools</groupId>
@@ -106,6 +110,51 @@
             <version>1.0</version>
             <scope>provided</scope>
         </dependency>
+        <!-- From here one are all just gt-shapefile dependencies -->
+        <dependency>
+            <groupId>org.jdom</groupId>
+            <artifactId>jdom</artifactId>
+            <version>1.1</version>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Excluded: jdom dependency oracle.xml.parsers-->
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-data</artifactId>
+            <version>8.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-main</artifactId>
+            <version>8.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Excluded junit.framework dependency -->
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-cql</artifactId>
+            <version>8.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-geojson</artifactId>
+            <version>8.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.geotools.xsd</groupId>
+            <artifactId>gt-xsd-kml</artifactId>
+            <version>8.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.geotools</groupId>
+            <artifactId>gt-wms</artifactId>
+            <version>8.0</version>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
     <repositories>
@@ -136,20 +185,23 @@
                         </Bundle-Activator>
                         <Import-Package>
                             org.neo4j.graphdb, org.neo4j.graphdb.traversal, org.neo4j.kernel, !org.neo4j.*,
-                            !com.tinkerpop.blueprints.*,
+                            !com.tinkerpop.blueprints.*, !oracle.xml.*,
                             !org.geotools.*, !org.json.simple.*,
-                            !au.com.objectix.jgridshift,
+                            !au.com.objectix.jgridshift, !junit.framework.*,
                             !groovy.lang, !org.codehaus.groovy.*, !jline,
                             !org.apache.commons.collections, !org.apache.commons.pool.*, !org.apache.commons.logging.*,
+                            !org.apache.commons.httpclient.*,
                             !org.apache.commons.lang,
                             !org.apache.log4j,
+                            !org.apache.xerces.*,
+                            !org.jaxen.*, !org.picocontainer.*,
                             !javax.vecmath, !javax.media.jai.*, !javax.transaction.*, *
                         </Import-Package>
                         <Embed-Dependency>
                             neo4j-spatial, neo4j-graph-collections,
-                            gt-api, gt-opengis, gt-metadata, gt-referencing,
-                            jts, jscience,
-                            gremlin-java, gremlin-groovy, pipes
+                            gt-api, gt-opengis, gt-metadata, gt-referencing, jdom,
+                            jts, jscience, gt-shapefile, gt-data, gt-main, gt-cql,
+                            gt-xsd-kml, gt-wms, gt-geojson, gremlin-java, gremlin-groovy, pipes
                         </Embed-Dependency>
                     </instructions>
                 </configuration>
