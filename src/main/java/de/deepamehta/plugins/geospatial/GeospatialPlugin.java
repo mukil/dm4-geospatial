@@ -80,10 +80,11 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     @GET
     @Path("/add/geometry/{absoluteFilePath}")
     @Transactional
-    public Response addGeometryLayer(@PathParam("absoluteFilePath") String absoluteFile) {
+    @Override
+    public Response doIndexGeometryLayer(@PathParam("absoluteFilePath") String absoluteFile) {
         GraphDatabaseService neo4j = (GraphDatabaseService) dm4.getDatabaseVendorObject();
         SpatialDatabaseService spatialDB = new SpatialDatabaseService(neo4j);
-        logger.info("### Storing new layer (\"" + DEFAULT_GEOMETRY_LAYER_NAME + "\")");
+        logger.info("### Indexing new layer (\"" + DEFAULT_GEOMETRY_LAYER_NAME + "\")");
         try {
             if (spatialDB.containsLayer(DEFAULT_GEOMETRY_LAYER_NAME)) {
                 geometryLayer = (EditableLayer) spatialDB.getLayer(DEFAULT_GEOMETRY_LAYER_NAME);
@@ -97,7 +98,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             logger.info("Created Shapefile Geometry Layer with \"" + absoluteFile + "\"");
             return Response.noContent().build();
         } catch (Exception ex) {
-            logger.severe("IO/Error occured during import of shapefile");
+            logger.severe("IO/Error occured during indexing shapefile layer with neo4j-spatial");
             throw new RuntimeException(ex);
         }
     }

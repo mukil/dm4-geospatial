@@ -5,10 +5,14 @@ import de.deepamehta.geomaps.model.GeoCoordinate;
 import de.deepamehta.core.Topic;
 
 import java.util.List;
+import javax.ws.rs.core.Response;
 
 
 
 public interface GeospatialService {
 
     List<Topic> getTopicsWithinDistance(GeoCoordinate geoCoord, double maxDistanceInKm);
+
+    Response doIndexGeometryLayer(String absoluteFile);
+
 }

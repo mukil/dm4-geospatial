@@ -13,8 +13,12 @@
     <parent>
         <groupId>de.deepamehta</groupId>
         <artifactId>deepamehta-plugin</artifactId>
-        <version>4.8</version>
+        <version>4.8.3</version>
     </parent>
+
+    <!--properties>
+	<dm4.deploy.dir>/home/malted/source/mikro/deepamehta/bundle-deploy</dm4.deploy.dir>
+    </properties-->
 
     <dependencies>
         <dependency>
