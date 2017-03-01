@@ -131,12 +131,11 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             if (spatialDB.containsLayer(DEFAULT_GEOMETRY_LAYER_NAME)) {
                 geometryLayer = (EditableLayer) spatialDB.getLayer(DEFAULT_GEOMETRY_LAYER_NAME);
                 logger.info("### Inspecting layer (\"" + DEFAULT_GEOMETRY_LAYER_NAME + "\"), By Coordinate: " + coordinates);
-                countGeometryIndex(DEFAULT_GEOMETRY_LAYER_NAME);
+                // countGeometryIndex(DEFAULT_GEOMETRY_LAYER_NAME);
             } else {
                 throw new RuntimeException("Geometry layer does not exist");
             }
             GeometryFactory geometryFactory = new GeometryFactory();
-            // ### Coordinates 52, 13
             Coordinate coordinate = new Coordinate(Double.parseDouble(latLng[1]), Double.parseDouble(latLng[0]));
             Point point = geometryFactory.createPoint(coordinate);
             GeoPipeline spatialRecords = GeoPipeline.start(geometryLayer);
@@ -145,16 +144,14 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
                 SpatialDatabaseRecord entry = spatialRecord.getRecord();
                 Geometry geometry = entry.getGeometry();
                 if (point.within(geometry)) {
-                    // logger.info("GREAT, OK! Point \"" + point + "\" is WITHIN => " +  entry.getId());
+                    Object value = getGeometryAttribute(entry, valueKey);
+                    logger.info("GREAT, OK! Point \"" + point + "\" is WITHIN => " +  value);
                     // inspectGeometryAttributes(entry);
-                    return getGeometryAttribute(entry, valueKey);
+                    return value;
                 }
             }
             logger.info("No geometry found matching the coordinates");
             return null;
-        } catch (IOException ex) {
-            logger.severe("Error occured during inspecting of geometry layer");
-            throw new RuntimeException(ex);
         } catch (RuntimeException ex) {
             logger.severe("Error occured during inspecting of geometry layer");
             throw new RuntimeException(ex);
