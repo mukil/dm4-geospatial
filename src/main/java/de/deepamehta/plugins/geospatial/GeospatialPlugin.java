@@ -82,6 +82,9 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     @Transactional
     @Override
     public Response doIndexGeometryLayer(@PathParam("absoluteFilePath") String absoluteFile) {
+        if (!acService.getUsername().equals(AccessControlService.ADMIN_USERNAME)) {
+            throw new RuntimeException("Unauthorized to add a new geometry layer to spatial index");
+        }
         GraphDatabaseService neo4j = (GraphDatabaseService) dm4.getDatabaseVendorObject();
         SpatialDatabaseService spatialDB = new SpatialDatabaseService(neo4j);
         logger.info("### Indexing new layer (\"" + DEFAULT_GEOMETRY_LAYER_NAME + "\")");
@@ -104,21 +107,37 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     }
 
     @GET
-    @Path("/geometrylayer")
-    @Transactional
-    public Response inspectGeometryLayer() {
+    @Path("/feature/{latlng}")
+    public Response getGeometryFeatureName(@PathParam("latlng") String coordinates) {
+        String name = getGeometryFeatureNameByCoordinate(coordinates);
+        if (name != null) {
+            return Response.ok(name).build();
+        }
+        return Response.noContent().build();
+    }
+
+    @Override
+    public String getGeometryFeatureNameByCoordinate(@PathParam("latlng") String coordinates) {
+        Object value = getGeometryFeatureValueByCoordinate(coordinates, "Name");
+        return (String) value;
+    }
+
+    @Override
+    public Object getGeometryFeatureValueByCoordinate(@PathParam("latlng") String coordinates, String valueKey) {
         GraphDatabaseService neo4j = (GraphDatabaseService) dm4.getDatabaseVendorObject();
         SpatialDatabaseService spatialDB = new SpatialDatabaseService(neo4j);
         try {
+            String[] latLng = coordinates.split(",");
             if (spatialDB.containsLayer(DEFAULT_GEOMETRY_LAYER_NAME)) {
                 geometryLayer = (EditableLayer) spatialDB.getLayer(DEFAULT_GEOMETRY_LAYER_NAME);
-                logger.info("### Inspecting layer (\"" + DEFAULT_GEOMETRY_LAYER_NAME + "\")");
+                logger.info("### Inspecting layer (\"" + DEFAULT_GEOMETRY_LAYER_NAME + "\"), By Coordinate: " + coordinates);
                 countGeometryIndex(DEFAULT_GEOMETRY_LAYER_NAME);
             } else {
                 throw new RuntimeException("Geometry layer does not exist");
             }
             GeometryFactory geometryFactory = new GeometryFactory();
-            Coordinate coordinate = new Coordinate(13.390098, 52.524138);
+            // ### Coordinates 52, 13
+            Coordinate coordinate = new Coordinate(Double.parseDouble(latLng[1]), Double.parseDouble(latLng[0]));
             Point point = geometryFactory.createPoint(coordinate);
             GeoPipeline spatialRecords = GeoPipeline.start(geometryLayer);
             // GeoPipeline spatialRecords = GeoPipeline.startWithinSearch(geometryLayer, pointGeo);
@@ -126,15 +145,13 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
                 SpatialDatabaseRecord entry = spatialRecord.getRecord();
                 Geometry geometry = entry.getGeometry();
                 if (point.within(geometry)) {
-                    logger.info("GREAT, OK! Point \"" + point + "\" is WITHIN => " +  entry.getId());
-                    logGeometryAttributes(entry);
-                }
-                if (geometry.covers(point)) {
-                    logger.info("GREAT, OK! Point \"" + point + "\" is COVERED BY => " +  entry.getId());
-                    logGeometryAttributes(entry);
+                    // logger.info("GREAT, OK! Point \"" + point + "\" is WITHIN => " +  entry.getId());
+                    // inspectGeometryAttributes(entry);
+                    return getGeometryAttribute(entry, valueKey);
                 }
             }
-            return Response.ok().build();
+            logger.info("No geometry found matching the coordinates");
+            return null;
         } catch (IOException ex) {
             logger.severe("Error occured during inspecting of geometry layer");
             throw new RuntimeException(ex);
@@ -280,7 +297,17 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     // ------------------------------------------------------------------------------------------------- Private Methods
 
-    private void logGeometryAttributes(SpatialDatabaseRecord entry) {
+    private Object getGeometryAttribute(SpatialDatabaseRecord entry, String attributeKey) {
+        try {
+            return entry.getProperties().get(attributeKey);
+        } catch (RuntimeException re) {
+            logger.severe("Could not find an attribute named \"" + attributeKey
+                + "\" at geospatial entry " + entry.toString());
+        }
+        return null;
+    }
+
+    private void inspectGeometryAttributes(SpatialDatabaseRecord entry) {
         logger.info("=> Inspecting spatial database entry => " +  entry.getId());
         Map<String, Object> props = entry.getProperties();
         for (String key : props.keySet()) {

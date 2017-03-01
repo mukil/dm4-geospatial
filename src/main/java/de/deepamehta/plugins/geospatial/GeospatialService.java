@@ -15,4 +15,8 @@ public interface GeospatialService {
 
     Response doIndexGeometryLayer(String absoluteFile);
 
+    String getGeometryFeatureNameByCoordinate(String latlng);
+
+    Object getGeometryFeatureValueByCoordinate(String latlng, String valueKey);
+
 }
