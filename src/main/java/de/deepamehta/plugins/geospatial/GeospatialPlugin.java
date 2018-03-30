@@ -256,7 +256,11 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         }
     }
 
-
+    @Override
+    public boolean validWGS84Coordinates(GeoCoordinate coords) {
+        return ((coords.lat < 91 && coords.lat > -91)
+            && (coords.lon < 91 && coords.lon > -91));
+    }
 
     // ********************************
     // *** Listener Implementations ***

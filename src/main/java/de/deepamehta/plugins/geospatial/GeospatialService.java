@@ -19,4 +19,6 @@ public interface GeospatialService {
 
     Object getGeometryFeatureValueByCoordinate(String latlng, String valueKey);
 
+    boolean validWGS84Coordinates(GeoCoordinate pos);
+
 }
