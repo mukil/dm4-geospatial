@@ -11,13 +11,13 @@ DeepaMehta 4 is a platform for collaboration and knowledge management.
 API
 ---
 
-Java API:
+Java API (Within Distance Example):
 
     List<Topic> getTopicsWithinDistance(GeoCoordinate geoCoord, double maxDistanceInKm)
 
 Returned is a list of Geo Coordinate topics (as defined in the Geomaps plugin).
 
-REST API:
+REST API (Within Distance Example):
 
     GET /geospatial/<lon>,<lat>/distance/<km>
 
@@ -26,8 +26,8 @@ The response is an array of Geo Coordinate topics.
 If you want include the Geo Coordinate topic's Longitude and Latitude child topics in the result as well append `?include_childs=true` to the request.
 
 
-Example
--------
+Example (Within Distance)
+-------------------------
 
 Java API:
 
@@ -48,6 +48,12 @@ Java API:
 
 Version History
 ---------------
+
+**0.4** -- Mar 30, 2018
+
+* Inroduced shapefile-layer capabilities
+* Extended service to query shapefile for key, values by geo coordinate
+* Compatible with DeepaMehta 4.9.x
 
 **0.3** -- Aug 05, 2016
 
