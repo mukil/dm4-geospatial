@@ -79,9 +79,9 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     /** 
      * Fetches all Geo Coordinate topics within a "given distance" (using neo4j-spatial).
-     * @param geoCoord
-     * @param maxDistanceInKm
-     * @return List<Topic> Topics Should be topics of type "dm4.geomaps.geo_coordinate"
+     * @param geoCoord  Coordinate pair
+     * @param maxDistanceInKm   The maximum distance (e.g 1.3) in kilometers between the given coordinate and a POI.
+     * @return List Topics will be topics of type "dm4.geomaps.geo_coordinate"
      */
     @GET
     @Path("/{geo_coord}/distance/{distance}")
