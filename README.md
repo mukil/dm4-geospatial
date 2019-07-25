@@ -1,11 +1,11 @@
 
-DeepaMehta 4 Geospatial
+DMX Geospatial
 =======================
 
-A DeepaMehta 4 plugin that provides geospatial "Within Distance" queries.
+A DMX plugin that provides geospatial "Within Distance" queries.
 
-DeepaMehta 4 is a platform for collaboration and knowledge management.  
-<https://github.com/jri/deepamehta>
+DMX is a platform for collaboration and knowledge management.  
+<https://git.dmx.sytems/dmx-platform/dmx-platform>
 
 
 API
@@ -17,13 +17,25 @@ Java API (Within Distance Example):
 
 Returned is a list of Geo Coordinate topics (as defined in the Geomaps plugin).
 
+Java API (Query Shapefile Properties by Geo Coordinates):
+
+    Object `getGeometryFeatureValueByCoordinate(String coordinates, String key)`
+
 REST API (Within Distance Example):
 
     GET /geospatial/<lon>,<lat>/distance/<km>
 
 The response is an array of Geo Coordinate topics.
 
-If you want include the Geo Coordinate topic's Longitude and Latitude child topics in the result as well append `?include_childs=true` to the request.
+If you want include the Geo Coordinate topic's Longitude and Latitude child topics in the result as well append `?include_children=true` to the request.
+
+REST API Get Feature Name:
+
+    `/feature/{latlng}`
+
+The response is the `Name` property of the geometry's `Feature` in which a given coordinate pair (WGS-84) is located (using neo4j-spatial shapefile).
+
+
 
 
 Example (Within Distance)
@@ -31,9 +43,9 @@ Example (Within Distance)
 
 Java API:
 
-    import de.deepamehta.plugins.geospatial.GeospatialService;
-    import de.deepamehta.plugins.geomaps.GeomapsService;
-    import de.deepamehta.plugins.geomaps.model.GeoCoordinate;
+    import systems.dmx.geospatial.GeospatialService;
+    import systems.dmx.geomaps.GeomapsService;
+    import systems.dmx.geomaps.model.GeoCoordinate;
 
     GeospatialService geospatialService;
     GeomapsService geomapsService;
@@ -48,6 +60,12 @@ Java API:
 
 Version History
 ---------------
+
+**0.5** -- Upcoming
+
+* Compatible with DMX 5.0-beta-4
+* No support for database upgrades for geometry layers in deepamehta-db's (need to re-index)
+* Released under the AGPL-3.0 License
 
 **0.4** -- Mar 30, 2018
 
@@ -77,6 +95,16 @@ Note: This release is not compatible with one of the previous releases. If you h
 * Based on Neo4j Spatial
 * Compatible with DeepaMehta 4.4-SNAPSHOT
 
-------------
-Jörg Richter & Malte Reißig<br/>
-Aug 05, 2016
+Licensing
+---------
+
+DMX Geospatial software is available freely under the GNU Affero General Public License, version 3.
+
+All third party components incorporated into the DMX Geospatial Software are licensed under the original license provided by the owner of the applicable component.
+
+
+Copyright
+---------
+Copyright (C) 2016 Jörg Richter<br/>
+Copyright (C) 2017-2018 Malte Reißig<br/>
+Copyright (C) 2019 DMX Systems<br/>

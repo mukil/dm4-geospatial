@@ -1,14 +1,11 @@
-package de.deepamehta.plugins.geospatial;
+package systems.dmx.geospatial;
 
 import com.vividsolutions.jts.geom.Coordinate;
-
 import org.neo4j.gis.spatial.AbstractGeometryEncoder;
 import org.neo4j.graphdb.PropertyContainer;
-
 import com.vividsolutions.jts.geom.Geometry;
-import de.deepamehta.core.service.CoreService;
-
 import java.util.logging.Logger;
+import systems.dmx.core.service.CoreService;
 
 
 

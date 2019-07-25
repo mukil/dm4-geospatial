@@ -1,9 +1,6 @@
-package de.deepamehta.plugins.geospatial;
-
+package systems.dmx.geospatial;
 
 import com.vividsolutions.jts.geom.Point;
-
-
 
 interface PointFactory {
 

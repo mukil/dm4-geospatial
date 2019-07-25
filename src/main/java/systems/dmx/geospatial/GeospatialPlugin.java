@@ -1,13 +1,4 @@
-package de.deepamehta.plugins.geospatial;
-
-import de.deepamehta.core.Topic;
-import de.deepamehta.core.model.TopicModel;
-import de.deepamehta.core.osgi.PluginActivator;
-import de.deepamehta.core.service.Inject;
-import de.deepamehta.core.service.event.PostCreateTopicListener;
-import de.deepamehta.core.service.event.PostUpdateTopicListener;
-import de.deepamehta.core.service.event.PreDeleteTopicListener;
-import de.deepamehta.core.storage.spi.DeepaMehtaTransaction;
+package systems.dmx.geospatial;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.gis.spatial.EditableLayerImpl;
@@ -19,10 +10,6 @@ import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.Point;
-import de.deepamehta.accesscontrol.AccessControlService;
-import de.deepamehta.core.service.Transactional;
-import de.deepamehta.core.service.accesscontrol.Operation;
-import de.deepamehta.geomaps.model.GeoCoordinate;
 import java.io.IOException;
 import java.nio.charset.Charset;
 
@@ -42,6 +29,18 @@ import org.neo4j.gis.spatial.Layer;
 import org.neo4j.gis.spatial.ShapefileImporter;
 import org.neo4j.gis.spatial.SpatialDatabaseRecord;
 import org.neo4j.graphdb.NotFoundException;
+import systems.dmx.accesscontrol.AccessControlService;
+import systems.dmx.core.Topic;
+import systems.dmx.core.model.TopicModel;
+import systems.dmx.core.osgi.PluginActivator;
+import systems.dmx.core.service.Inject;
+import systems.dmx.core.service.Transactional;
+import systems.dmx.core.service.accesscontrol.Operation;
+import systems.dmx.core.service.event.PostCreateTopic;
+import systems.dmx.core.service.event.PostUpdateTopic;
+import systems.dmx.core.service.event.PreDeleteTopic;
+import systems.dmx.core.storage.spi.DMXTransaction;
+import systems.dmx.geomaps.GeoCoordinate;
 
 
 
@@ -49,15 +48,15 @@ import org.neo4j.graphdb.NotFoundException;
 @Consumes("application/json")
 @Produces("application/json")
 public class GeospatialPlugin extends PluginActivator implements GeospatialService, PointFactory,
-                                                                                    PostCreateTopicListener,
-                                                                                    PostUpdateTopicListener,
-                                                                                    PreDeleteTopicListener {
+                                                                                    PostCreateTopic,
+                                                                                    PostUpdateTopic,
+                                                                                    PreDeleteTopic {
 
     // ------------------------------------------------------------------------------------------------------- Constants
 
-    public static final String DEFAULT_POINT_LAYER_NAME     = "dm4.geospatial.default_layer";
-    public static final String DEFAULT_GEOMETRY_LAYER_NAME  = "dm4.geospatial.default_geometry_layer";
-    public static final String GEO_NODE_PROPERTY_ID         = "dm4.geospatial.geometry_node_id";
+    public static final String DEFAULT_POINT_LAYER_NAME     = "dmx.geospatial.default_layer";
+    public static final String DEFAULT_GEOMETRY_LAYER_NAME  = "dmx.geospatial.default_geometry_layer";
+    public static final String GEO_NODE_PROPERTY_ID         = "dmx.geospatial.geometry_node_id";
 
     // ---------------------------------------------------------------------------------------------- Instance Variables
 
@@ -81,7 +80,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
      * Fetches all Geo Coordinate topics within a "given distance" (using neo4j-spatial).
      * @param geoCoord  Coordinate pair
      * @param maxDistanceInKm   The maximum distance (e.g 1.3) in kilometers between the given coordinate and a POI.
-     * @return List Topics will be topics of type "dm4.geomaps.geo_coordinate"
+     * @return List Topics will be topics of type "dmx.geomaps.geo_coordinate"
      */
     @GET
     @Path("/{geo_coord}/distance/{distance}")
@@ -108,8 +107,8 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             for (GeoPipeFlow spatialRecord : spatialRecords) {
                 // Note: long distance = spatialRecord.getProperty("OrthodromicDistance")
                 long geoCoordId = ( (Number) spatialRecord.getRecord().getProperty("topic_id")).longValue();
-                if (dm4.getAccessControl().hasPermission(username, Operation.READ, geoCoordId)) {
-                    geoCoords.add(dm4.getTopic(geoCoordId));
+                if (dmx.getPrivilegedAccess().hasPermission(username, Operation.READ, geoCoordId)) {
+                    geoCoords.add(dmx.getTopic(geoCoordId));
                 } else {
                     logger.fine("Skipped to load geo coordinate topic, cause user (\""+username+"\") has no READ"
                         + " permission for topci id");
@@ -139,14 +138,14 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     }
 
     @GET
-    @Path("/add/geometry/{absoluteFilePath}")
+    @Path("/set/geometry/{absoluteFilePath}")
     @Transactional
     @Override
-    public Response doIndexGeometryLayer(@PathParam("absoluteFilePath") String absoluteFile) {
+    public Response setGeometryLayer(@PathParam("absoluteFilePath") String absoluteFile) {
         if (!acService.getUsername().equals(AccessControlService.ADMIN_USERNAME)) {
             throw new RuntimeException("Unauthorized to write default geometry layer to queries at /feature)");
         }
-        GraphDatabaseService neo4j = (GraphDatabaseService) dm4.getDatabaseVendorObject();
+        GraphDatabaseService neo4j = (GraphDatabaseService) dmx.getDatabaseVendorObject();
         SpatialDatabaseService spatialDB = new SpatialDatabaseService(neo4j);
         logger.info("### Indexing new layer (\"" + DEFAULT_GEOMETRY_LAYER_NAME + "\")");
         try {
@@ -176,7 +175,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     @Override
     public Object getGeometryFeatureValueByCoordinate(@PathParam("latlng") String coordinates, String key) {
-        GraphDatabaseService neo4j = (GraphDatabaseService) dm4.getDatabaseVendorObject();
+        GraphDatabaseService neo4j = (GraphDatabaseService) dmx.getDatabaseVendorObject();
         SpatialDatabaseService spatialDB = new SpatialDatabaseService(neo4j);
         try {
             String[] latLng = coordinates.split(",");
@@ -231,7 +230,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     @Override
     public void init() {
-        GraphDatabaseService neo4j = (GraphDatabaseService) dm4.getDatabaseVendorObject();
+        GraphDatabaseService neo4j = (GraphDatabaseService) dmx.getDatabaseVendorObject();
         SpatialDatabaseService spatialDB = new SpatialDatabaseService(neo4j);
         //
         // IMPORTANT: deleting a Neo4j Spatial layer includes deleting the geometry nodes which are at the same time
@@ -257,7 +256,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
             geometryLayer = (EditableLayer) spatialDB.getLayer(DEFAULT_GEOMETRY_LAYER_NAME);
         }
         //
-        ((GeoCoordinateEncoder) pointLayer.getGeometryEncoder()).init(this, dm4);
+        ((GeoCoordinateEncoder) pointLayer.getGeometryEncoder()).init(this, dmx);
         // initial indexing
         if (layerCreated) {
             indexAllGeoCoordinateTopics();
@@ -278,7 +277,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     @Override
     public void postCreateTopic(Topic topic) {
-        if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
+        if (topic.getTypeUri().equals("dmx.geomaps.geo_coordinate")) {
             logger.info("### Adding Geo Coordinate to geospatial index (" + topic.getId() + ")");
             addToIndex(topic.loadChildTopics());
         }
@@ -286,7 +285,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     @Override
     public void postUpdateTopic(Topic topic, TopicModel newModel, TopicModel oldModel) {
-        if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
+        if (topic.getTypeUri().equals("dmx.geomaps.geo_coordinate")) {
             logger.info("### Updating Geo Coordinate " + topic.getId() + " in geospatial index");
             updateIndex(topic.loadChildTopics());
         }
@@ -296,7 +295,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     @Override
     public void preDeleteTopic(Topic topic) {
-        if (topic.getTypeUri().equals("dm4.geomaps.geo_coordinate")) {
+        if (topic.getTypeUri().equals("dmx.geomaps.geo_coordinate")) {
             logger.info("### Removing Geo Coordinate " + topic.getId() + " from geospatial index");
             removeFromIndex(topic);
         }
@@ -327,7 +326,7 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
 
     /** Useful for inspecting geometries, not in use by default. **/
     private void countGeometryIndex(String layerName) throws IOException {
-        GraphDatabaseService neo4j = (GraphDatabaseService) dm4.getDatabaseVendorObject();
+        GraphDatabaseService neo4j = (GraphDatabaseService) dmx.getDatabaseVendorObject();
         SpatialDatabaseService spatial = new SpatialDatabaseService(neo4j);
         Layer layer = spatial.getLayer(layerName);
         if (layer.getIndex().count() < 1) {
@@ -342,8 +341,8 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     private void addToIndex(Topic geoCoord) {
         // Old: layer.add((Node) geoCoord.getDatabaseVendorObject()); // this triggers a decodeGeom before encoding
         geoCoord.loadChildTopics();
-        double longitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.longitude");
-        double latitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.latitude");
+        double longitude = geoCoord.getChildTopics().getDouble("dmx.geomaps.longitude");
+        double latitude = geoCoord.getChildTopics().getDouble("dmx.geomaps.latitude");
         // Note 1: we store the reference to the geo coordinate topic (id) in the geometry node to assemble the
         // resulting list of topics after a spatial query
         String propertyKeys[] = { "topic_id" };
@@ -351,15 +350,15 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
         // New: We directly (and just) trigger encodeGeometryShape (no decodeGeom is called in our AGE before initial 
         //      encoding) via not using layer.add(Node) but layer.add(Geometry).
         SpatialDatabaseRecord sr = pointLayer.add(createPointByCoordinates(longitude, latitude), propertyKeys, values);
-        // Note 2: we store a reference to the geometry node in a dm4-node property to easify alteration of index
+        // Note 2: we store a reference to the geometry node in a dmx-node property to easify alteration of index
         geoCoord.setProperty(GEO_NODE_PROPERTY_ID, sr.getGeomNode().getId(), true);
     }
 
     private void updateIndex(Topic geoCoord) {
         // get updated values
         geoCoord.loadChildTopics();
-        double longitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.longitude");
-        double latitude = geoCoord.getChildTopics().getDouble("dm4.geomaps.latitude");
+        double longitude = geoCoord.getChildTopics().getDouble("dmx.geomaps.longitude");
+        double latitude = geoCoord.getChildTopics().getDouble("dmx.geomaps.latitude");
         // update indexed geometry node
         try {
             long nodeId = ( (Number) geoCoord.getProperty(GEO_NODE_PROPERTY_ID)).longValue();
@@ -383,9 +382,9 @@ public class GeospatialPlugin extends PluginActivator implements GeospatialServi
     // ---
 
     private void indexAllGeoCoordinateTopics() {
-        DeepaMehtaTransaction tx = dm4.beginTx();
+        DMXTransaction tx = dmx.beginTx();
         try {
-            List<Topic> geoCoords = dm4.getTopicsByType("dm4.geomaps.geo_coordinate");
+            List<Topic> geoCoords = dmx.getTopicsByType("dmx.geomaps.geo_coordinate");
             logger.info("### Filling initial geospatial index with " + geoCoords.size() + " Geo Coordinates");
             for (Topic geoCoord : geoCoords) {
                 addToIndex(geoCoord.loadChildTopics());

@@ -1,19 +1,15 @@
-package de.deepamehta.plugins.geospatial;
-
-import de.deepamehta.geomaps.model.GeoCoordinate;
-
-import de.deepamehta.core.Topic;
+package systems.dmx.geospatial;
 
 import java.util.List;
 import javax.ws.rs.core.Response;
-
-
+import systems.dmx.core.Topic;
+import systems.dmx.geomaps.GeoCoordinate;
 
 public interface GeospatialService {
 
     List<Topic> getTopicsWithinDistance(GeoCoordinate geoCoord, double maxDistanceInKm);
 
-    Response doIndexGeometryLayer(String absoluteFile);
+    Response setGeometryLayer(String absoluteFile);
 
     String getGeometryFeatureNameByCoordinate(String latlng);
 
