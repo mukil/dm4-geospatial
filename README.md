@@ -63,7 +63,7 @@ Version History
 
 **0.5** -- Upcoming
 
-* Compatible with DMX 5.0-beta-4
+* Compatible with DMX 5.0 API
 * No support for database upgrades for geometry layers in deepamehta-db's (need to re-index)
 * Released under the AGPL-3.0 License
 
